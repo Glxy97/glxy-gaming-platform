@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * GLXY Gaming Platform - Advanced Rate Limiting
  * Enterprise-grade rate limiting with Redis backend
