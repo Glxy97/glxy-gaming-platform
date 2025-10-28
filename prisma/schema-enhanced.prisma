@@ -1,0 +1,827 @@
+// Enhanced GLXY Gaming Platform Schema
+// This is an extended version of the current schema with optimizations
+// Run with: npx prisma migrate dev --name "enhanced_gaming_schema"
+
+generator client {
+  provider = "prisma-client-js"
+  previewFeatures = ["fullTextSearch", "postgresqlExtensions"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  extensions = [pgcrypto]
+}
+
+// ===== ENHANCED USER MANAGEMENT =====
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  username  String?  @unique
+  password  String   @default("")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Enhanced Profile
+  name          String?
+  firstName     String?
+  lastName      String?
+  image         String?
+  avatar        String?
+  bio           String?   @db.Text
+  location      String?
+  timezone      String    @default("UTC")
+  language      String    @default("en")
+  birthDate     DateTime?
+
+  // Gaming Profile
+  level        Int      @default(1)
+  globalXP     Int      @default(0)
+  coins        Int      @default(100)
+  playerTitle  String?
+
+  // Enhanced Security
+  loginAttempts     Int       @default(0)
+  lockedUntil       DateTime?
+  lastLogin         DateTime?
+  lastLoginIp       String?
+  lastLoginDevice   String?
+  mfaEnabled        Boolean   @default(false) @map("mfa_enabled")
+  mfaSecret         String?   @map("mfa_secret")
+  mfaBackupCodes    String[]  @default([])
+
+  // Email verification
+  emailVerified     Boolean   @default(false) @map("email_verified")
+  verificationToken String?   @map("verification_token")
+  tokenExpires      DateTime? @map("token_expires")
+
+  // Privacy & Preferences
+  isPrivate         Boolean   @default(false)
+  showOnlineStatus  Boolean   @default(true)
+  allowFriendRequests Boolean @default(true)
+  preferences       Json      @default("{}")
+
+  // Status tracking
+  status           UserStatus   @default(ACTIVE)
+  onlineStatus     OnlineStatus @default(OFFLINE)
+  lastActivity     DateTime?
+  deletedAt        DateTime?   // Soft delete
+
+  // Relations
+  accounts            Account[]
+  sessions            Session[]
+  gameStats           GameStats[]
+  achievements        UserAchievement[]
+  chatMessages        ChatMessage[]
+  gameRooms           GameRoom[]
+  playerInRooms       PlayerInRoom[]
+  ratings             PlayerRating[]
+  tournaments         TournamentParticipant[]
+  friendships         Friendship[] @relation("UserFriendships")
+  friendRequests      Friendship[] @relation("FriendRequests")
+  notifications       Notification[]
+  gameHistory         GameParticipant[]
+  auditLogs           AuditLog[]
+  organizedTournaments Tournament[]
+
+  // Enhanced Indexes
+  @@index([email])
+  @@index([username])
+  @@index([level, globalXP])
+  @@index([lastLogin])
+  @@index([lockedUntil])
+  @@index([verificationToken])
+  @@index([emailVerified])
+  @@index([status])
+  @@index([onlineStatus])
+  @@index([lastActivity])
+  @@index([deletedAt])
+  @@index([createdAt])
+  @@index([email, deletedAt])
+  @@index([username, deletedAt])
+  @@map("users")
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+  BANNED
+  PENDING_VERIFICATION
+}
+
+enum OnlineStatus {
+  ONLINE
+  AWAY
+  BUSY
+  INVISIBLE
+  OFFLINE
+}
+
+// ===== NEXTAUTH MODELS (UNCHANGED) =====
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expires])
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@index([expires])
+  @@map("verificationtokens")
+}
+
+// ===== ENHANCED RATING SYSTEM =====
+
+model PlayerRating {
+  id        String   @id @default(cuid())
+  userId    String
+  gameType  String
+
+  // ELO/Rating System
+  rating         Int      @default(1200)
+  peakRating     Int      @default(1200)
+  volatility     Float    @default(350.0)  // For Glicko-2 system
+  ratingDeviation Float   @default(350.0)
+
+  // Seasonal tracking
+  season         String?
+  seasonRating   Int?
+  seasonPeak     Int?
+
+  // Confidence metrics
+  gamesPlayed    Int      @default(0)
+  confidence     Float    @default(0.0)
+
+  // Performance tracking
+  winStreak      Int      @default(0)
+  lossStreak     Int      @default(0)
+  bestWinStreak  Int      @default(0)
+
+  // Time tracking
+  lastGameAt     DateTime?
+  lastRatingChange Int     @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, gameType, season])
+  @@index([gameType, rating])
+  @@index([gameType, season, rating])
+  @@index([userId, gameType])
+  @@index([gamesPlayed])
+  @@index([lastGameAt])
+  @@map("player_ratings")
+}
+
+// ===== ENHANCED GAME STATISTICS =====
+
+model GameStats {
+  id       String @id @default(cuid())
+  userId   String
+  gameType String
+
+  // Enhanced XP System
+  xp           Int @default(0)
+  level        Int @default(1)
+  xpToNext     Int @default(0)
+
+  // Comprehensive Stats
+  gamesPlayed  Int @default(0)
+  gamesWon     Int @default(0)
+  gamesLost    Int @default(0)
+  gamesDrawn   Int @default(0)
+
+  // Performance Metrics
+  averageGameTime   Int?    // in seconds
+  totalPlayTime     Int     @default(0) // in seconds
+  bestScore         Int?
+  averageScore      Float?
+
+  // Streaks and Records
+  currentWinStreak  Int     @default(0)
+  longestWinStreak  Int     @default(0)
+  currentLossStreak Int     @default(0)
+
+  // Advanced Metrics
+  ranking           Int?    // Current global ranking
+  percentile        Float?  // Performance percentile
+  skillLevel        SkillLevel @default(BEGINNER)
+
+  // Time-based stats
+  dailyPlayTime     Json    @default("{}")  // JSON with date keys
+  weeklyStats       Json    @default("{}")
+  monthlyStats      Json    @default("{}")
+
+  // Game-specific stats (flexible JSON)
+  gameSpecificStats Json    @default("{}")
+
+  // Tracking
+  firstGameAt       DateTime?
+  lastGameAt        DateTime?
+  lastUpdate        DateTime @updatedAt
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, gameType])
+  @@index([userId])
+  @@index([gameType])
+  @@index([gameType, level])
+  @@index([gameType, gamesWon])
+  @@index([gameType, xp])
+  @@index([gameType, ranking])
+  @@index([skillLevel])
+  @@index([lastGameAt])
+  @@map("game_stats")
+}
+
+enum SkillLevel {
+  BEGINNER
+  NOVICE
+  INTERMEDIATE
+  ADVANCED
+  EXPERT
+  MASTER
+  GRANDMASTER
+}
+
+// ===== ACHIEVEMENTS SYSTEM (ENHANCED) =====
+
+model Achievement {
+  id          String @id @default(cuid())
+  name        String @unique
+  description String @db.Text
+  icon        String
+  xpReward    Int
+  coinsReward Int    @default(0)
+  gameType    String?
+  category    AchievementCategory @default(GENERAL)
+
+  // Rarity and Display
+  rarity      AchievementRarity @default(COMMON)
+  isHidden    Boolean @default(false)
+  sortOrder   Int     @default(0)
+
+  // Conditions (JSON for flexibility)
+  conditions  Json @default("{}")
+
+  userAchievements UserAchievement[]
+
+  @@index([gameType])
+  @@index([category])
+  @@index([rarity])
+  @@index([xpReward])
+  @@index([isHidden])
+  @@map("achievements")
+}
+
+enum AchievementCategory {
+  GENERAL
+  GAMEPLAY
+  SOCIAL
+  COMPETITIVE
+  PROGRESSION
+  SPECIAL_EVENT
+}
+
+enum AchievementRarity {
+  COMMON
+  UNCOMMON
+  RARE
+  EPIC
+  LEGENDARY
+}
+
+model UserAchievement {
+  id            String   @id @default(cuid())
+  userId        String
+  achievementId String
+  unlockedAt    DateTime @default(now())
+  progress      Json     @default("{}")
+
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  achievement Achievement @relation(fields: [achievementId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, achievementId])
+  @@index([userId])
+  @@index([achievementId])
+  @@index([unlockedAt])
+  @@map("user_achievements")
+}
+
+// ===== TOURNAMENT SYSTEM =====
+
+model Tournament {
+  id          String @id @default(cuid())
+  name        String
+  description String? @db.Text
+  gameType    String
+
+  // Tournament Configuration
+  type            TournamentType
+  format          TournamentFormat
+  maxParticipants Int
+  entryFee        Int              @default(0)
+  prizePool       Int              @default(0)
+
+  // Status and Timing
+  status          TournamentStatus @default(UPCOMING)
+  registrationStart DateTime
+  registrationEnd   DateTime
+  tournamentStart   DateTime
+  tournamentEnd     DateTime?
+
+  // Settings
+  settings        Json @default("{}")
+  rules           String? @db.Text
+  requirements    Json @default("{}")
+
+  // Metadata
+  isPublic        Boolean @default(true)
+  featuredReward  String?
+  bannerImage     String?
+
+  // Relations
+  organizerId     String
+  organizer       User @relation(fields: [organizerId], references: [id])
+  participants    TournamentParticipant[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([gameType])
+  @@index([status])
+  @@index([type])
+  @@index([registrationStart, registrationEnd])
+  @@index([tournamentStart])
+  @@index([organizerId])
+  @@index([isPublic, gameType])
+  @@index([gameType, status, registrationStart])
+  @@map("tournaments")
+}
+
+enum TournamentType {
+  SINGLE_ELIMINATION
+  DOUBLE_ELIMINATION
+  ROUND_ROBIN
+  SWISS
+  LADDER
+}
+
+enum TournamentFormat {
+  BEST_OF_ONE
+  BEST_OF_THREE
+  BEST_OF_FIVE
+  FIRST_TO_SCORE
+}
+
+enum TournamentStatus {
+  UPCOMING
+  REGISTRATION_OPEN
+  REGISTRATION_CLOSED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+model TournamentParticipant {
+  id           String @id @default(cuid())
+  tournamentId String
+  userId       String
+
+  // Participation info
+  registeredAt DateTime @default(now())
+  seed         Int?
+  status       ParticipantStatus @default(REGISTERED)
+
+  // Performance
+  wins         Int @default(0)
+  losses       Int @default(0)
+  position     Int?
+  prizeWon     Int @default(0)
+
+  tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([tournamentId, userId])
+  @@index([tournamentId])
+  @@index([userId])
+  @@index([status])
+  @@index([position])
+  @@index([tournamentId, status, position])
+  @@map("tournament_participants")
+}
+
+enum ParticipantStatus {
+  REGISTERED
+  CHECKED_IN
+  PLAYING
+  ELIMINATED
+  WINNER
+  DISQUALIFIED
+}
+
+// ===== SOCIAL FEATURES =====
+
+model Friendship {
+  id        String @id @default(cuid())
+  requesterId String
+  addresseeId String
+  status     FriendshipStatus @default(PENDING)
+
+  requester User @relation("UserFriendships", fields: [requesterId], references: [id], onDelete: Cascade)
+  addressee User @relation("FriendRequests", fields: [addresseeId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([requesterId, addresseeId])
+  @@index([requesterId])
+  @@index([addresseeId])
+  @@index([status])
+  @@index([requesterId, status])
+  @@map("friendships")
+}
+
+enum FriendshipStatus {
+  PENDING
+  ACCEPTED
+  BLOCKED
+  DECLINED
+}
+
+model Notification {
+  id       String @id @default(cuid())
+  userId   String
+  type     NotificationType
+  title    String
+  message  String @db.Text
+
+  // Metadata
+  data     Json @default("{}")
+  read     Boolean @default(false)
+
+  // References
+  relatedUserId String?
+  relatedItemId String?
+  relatedItemType String?
+
+  // Actions
+  actionUrl String?
+  actionText String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  expiresAt DateTime?
+
+  @@index([userId])
+  @@index([type])
+  @@index([read])
+  @@index([createdAt])
+  @@index([userId, read, createdAt])
+  @@map("notifications")
+}
+
+enum NotificationType {
+  FRIEND_REQUEST
+  FRIEND_ACCEPTED
+  GAME_INVITATION
+  TOURNAMENT_INVITATION
+  ACHIEVEMENT_UNLOCKED
+  LEVEL_UP
+  SYSTEM_MESSAGE
+  TOURNAMENT_START
+  GAME_COMPLETED
+  RATING_CHANGE
+  NEW_HIGH_SCORE
+}
+
+// ===== ENHANCED GAME ROOMS =====
+
+model GameRoom {
+  id       String @id @default(cuid())
+  name     String
+  gameType String
+  status   GameRoomStatus @default(WAITING)
+
+  // Room settings
+  maxPlayers    Int    @default(2)
+  isPublic      Boolean @default(true)
+  isRanked      Boolean @default(false)
+  settings      Json    @default("{}")
+
+  // Game data
+  gameData      Json @default("{}")
+
+  // Enhanced metadata
+  difficulty    String?
+  timeControl   Json?   // Time control settings
+  ratingRange   Json?   // Min/max rating for players
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  startedAt DateTime?
+  endedAt   DateTime?
+
+  // Relations
+  hostId  String
+  host    User   @relation(fields: [hostId], references: [id])
+  players PlayerInRoom[]
+  messages ChatMessage[]
+
+  // Performance indexes
+  @@index([gameType])
+  @@index([status])
+  @@index([gameType, status])
+  @@index([gameType, status, isPublic])
+  @@index([hostId])
+  @@index([createdAt])
+  @@index([updatedAt])
+  @@index([isRanked, gameType])
+  @@map("game_rooms")
+}
+
+enum GameRoomStatus {
+  WAITING
+  STARTING
+  IN_PROGRESS
+  FINISHED
+  CANCELLED
+  ABANDONED
+}
+
+// ===== ENHANCED GAME HISTORY =====
+
+model GameHistory {
+  id        String @id @default(cuid())
+  gameType  String
+  roomId    String?
+
+  // Game metadata
+  gameMode    String?
+  difficulty  String?
+  duration    Int?        // in seconds
+  isRanked    Boolean     @default(false)
+
+  // Results
+  result      GameResult
+  score       Json        @default("{}")
+
+  // Participants
+  winner      String?     // userId
+
+  // Performance tracking
+  ratingChanges Json      @default("{}")  // Per player rating changes
+  xpGained      Json      @default("{}")  // Per player XP gained
+
+  // Game data
+  gameData    Json        @default("{}")
+  moves       Json?       @default("[]")  // Move history for strategy games
+
+  // Analytics
+  statistics  Json        @default("{}")
+
+  // Metadata
+  startedAt   DateTime
+  endedAt     DateTime    @default(now())
+  createdAt   DateTime    @default(now())
+
+  // Relations
+  participants GameParticipant[]
+
+  @@index([gameType])
+  @@index([result])
+  @@index([startedAt])
+  @@index([endedAt])
+  @@index([winner])
+  @@index([gameType, startedAt])
+  @@index([roomId])
+  @@index([isRanked, gameType])
+  @@map("game_history")
+}
+
+enum GameResult {
+  WIN
+  LOSS
+  DRAW
+  ABANDONED
+  TIMEOUT
+}
+
+model GameParticipant {
+  id          String @id @default(cuid())
+  gameId      String
+  userId      String
+
+  // Performance
+  position    Int?
+  score       Int?
+  result      GameResult
+
+  // Stats
+  moves       Int?
+  timeUsed    Int?        // in seconds
+  accuracy    Float?
+
+  // Changes
+  ratingBefore Int?
+  ratingAfter  Int?
+  xpGained     Int         @default(0)
+  coinsGained  Int         @default(0)
+
+  game GameHistory @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  user User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([gameId, userId])
+  @@index([gameId])
+  @@index([userId])
+  @@index([result])
+  @@index([userId, result])
+  @@map("game_participants")
+}
+
+// ===== PLAYER IN ROOM (ENHANCED) =====
+
+model PlayerInRoom {
+  id       String @id @default(cuid())
+  userId   String
+  roomId   String
+  joinedAt DateTime @default(now())
+  leftAt   DateTime?
+
+  // Player state in room
+  isReady  Boolean @default(false)
+  position Int?
+  team     String?
+
+  // Performance in room
+  score    Int?
+  moves    Int?
+
+  user User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  room GameRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roomId])
+  @@index([userId])
+  @@index([roomId])
+  @@index([joinedAt])
+  @@index([isReady])
+  @@index([leftAt])
+  @@map("players_in_rooms")
+}
+
+// ===== ENHANCED CHAT SYSTEM =====
+
+model ChatMessage {
+  id       String @id @default(cuid())
+  content  String @db.Text
+  userId   String
+  roomId   String?
+
+  // Message type: global, room, system, whisper
+  type     ChatMessageType @default(ROOM)
+
+  // Enhanced features
+  isSystem    Boolean @default(false)
+  isEdited    Boolean @default(false)
+  editedAt    DateTime?
+  replyToId   String?
+
+  // Moderation
+  isDeleted   Boolean @default(false)
+  deletedAt   DateTime?
+  deletedBy   String?
+
+  createdAt DateTime @default(now())
+
+  user User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  room GameRoom? @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  // Performance indexes
+  @@index([userId])
+  @@index([roomId])
+  @@index([type])
+  @@index([createdAt])
+  @@index([roomId, createdAt])
+  @@index([type, createdAt])
+  @@index([isDeleted])
+  @@map("chat_messages")
+}
+
+enum ChatMessageType {
+  GLOBAL
+  ROOM
+  SYSTEM
+  WHISPER
+  TOURNAMENT
+}
+
+// ===== AUDIT TRAIL =====
+
+model AuditLog {
+  id        String @id @default(cuid())
+
+  // Actor information
+  userId    String?
+  userEmail String?
+  ipAddress String?
+  userAgent String? @db.Text
+
+  // Action details
+  action       AuditAction
+  entity       String       // Table/resource name
+  entityId     String?      // Record ID
+
+  // Changes
+  oldValues    Json?
+  newValues    Json?
+  changedFields String[]   @default([])
+
+  // Context
+  reason       String?
+  sessionId    String?
+  requestId    String?
+
+  // Metadata
+  success      Boolean     @default(true)
+  errorMessage String?     @db.Text
+  metadata     Json        @default("{}")
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([action])
+  @@index([entity])
+  @@index([entityId])
+  @@index([createdAt])
+  @@index([action, entity])
+  @@index([userId, createdAt])
+  @@index([ipAddress, createdAt])
+  @@map("audit_logs")
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  LOGIN
+  LOGOUT
+  LOGIN_FAILED
+  REGISTER
+  VERIFY_EMAIL
+  RESET_PASSWORD
+  CHANGE_PASSWORD
+  ENABLE_MFA
+  DISABLE_MFA
+  JOIN_GAME
+  LEAVE_GAME
+  TOURNAMENT_JOIN
+  TOURNAMENT_LEAVE
+  ACHIEVEMENT_UNLOCK
+  FRIENDSHIP_REQUEST
+  FRIENDSHIP_ACCEPT
+  FRIENDSHIP_BLOCK
+  ADMIN_ACTION
+  SYSTEM_ACTION
+}

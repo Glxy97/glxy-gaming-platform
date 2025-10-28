@@ -1,0 +1,167 @@
+# GLXY Gaming Platform - Website-only .gitignore
+# Sichere Filterung: Nur relevante Website-Dateien
+
+# === SECURITY - NEVER COMMIT ===
+# ⚠️  KRITISCH: ALLE Environment-Dateien mit echten Credentials ausschließen!
+
+# ALL .env files (including production!)
+.env
+.env.*
+!.env.example
+!.env.template
+
+# Explicit exclusions for safety
+.env.local
+.env.development
+.env.production
+.env.staging
+.env.test
+
+# Backups and old env files
+*.env.bak*
+*.env.OLD*
+*.env.backup*
+*.env.new
+
+# Secrets and credentials (actual credential files only)
+.secret*
+.password*
+.key*
+*.key
+*.pem
+*.crt
+*.cert
+*.p12
+*.pfx
+*.backup
+credentials.*
+secrets.*
+private-key*
+
+# === BUILD & CACHE ===
+node_modules/
+.next/
+out/
+build/
+dist/
+coverage/
+.swc/
+*.tsbuildinfo
+
+# === IDE & SYSTEM ===
+.vscode/
+.idea/
+.cursor/
+.claude/
+*.log
+logs/
+.npm
+
+# === DOCUMENTATION FOLDERS - ORGANIZED ===
+# Alle Dokumentationen sind jetzt in docs/ organisiert
+
+# Security Documentation (KRITISCH - enthält sensible Infos)
+docs/security/
+
+# Deployment Documentation (SENSIBEL - zeigt Server-Struktur)
+docs/deployment/
+
+# Internal Documentation (INTERN - nicht öffentlich)
+docs/internal/
+
+# Alte Docs im Root (falls noch vorhanden)
+*SECURITY*.md
+*SECURITY*.txt
+*DEPLOY*.md
+*PRODUCTION*.md
+*INTERNAL*.md
+*AUDIT*.md
+*ORGANIZATION*.md
+PROJECT_STRUCTURE.md
+
+# Docs with REAL SECRETS (DO NOT COMMIT!)
+docs/OAUTH_IMPLEMENTATION_SUMMARY.md
+docs/OAUTH_SETUP.md
+docs/SECURITY_ASSESSMENT_REPORT_DOCS.md
+docs/LOCALHOST_VS_PRODUCTION.md
+docs/archive/security/SECURITY_HARDENING_REPORT.md
+
+# === DEVELOPMENT FILES - NOT FOR WEBSITE ===
+*.filepart
+*.tgz
+*.tar.gz
+*.txt
+scripts/
+config/
+check-typescript.js
+test-typescript.js
+test-oauth.html
+cloudbuild.yaml
+codex-glm.ps1
+list-models.ps1
+create-users.js
+*.ps1
+
+# === DEPLOYMENT - NOT FOR WEBSITE ===
+k8s/
+# nginx/ - Needed for production deployment
+docker/
+*.dockerignore*
+
+# Docker Compose with PRODUCTION SECRETS
+docker-compose.prod.yml
+docker-compose.prod-fixed.yml
+
+# Exclude all docker-compose variants EXCEPT templates
+docker-compose.*.yml
+!docker-compose.*.template.yml
+
+# Deploy scripts
+# deploy.sh - Needed for production deployment (in scripts/)
+fix-and-deploy.sh
+switch-env.sh
+redis.conf
+
+# === ADMIN TOOLS - NOT FOR WEBSITE ===
+app/admin/
+app/tools/
+
+# === CONFIG FILES - NOT FOR WEBSITE ===
+.eslintrc.json
+.gitmessage
+.yarnrc.yml
+eslint.config.mjs
+
+# === OTHER - NOT FOR WEBSITE ===
+LICENSE
+UPDATES.md
+sentry.*.config.ts
+instrumentation*.ts
+e2e/
+Dockerfile.cloud
+backups/
+*.backup
+*.bak
+*.old
+ssl/
+reports/
+add-performance-indexes.sql
+
+# === GENERATED/HELPER FILES ===
+types/qrcode.d.ts
+types/api.d.ts
+next-env.d.ts
+migrations/migrate.js
+migrations/migration-framework.js
+prisma/migrations/
+__tests__/backup/
+
+# === PDF WORKFLOW - RUNTIME STORAGE ===
+var/uploads/
+var/cache/pdf/
+public/uploads/
+
+# === LARGE ASSETS - NOT FOR GIT (4.6 GB!) ===
+# 3D Models und Map Templates bleiben lokal oder auf CDN
+public/models/
+public/data/map-templates/

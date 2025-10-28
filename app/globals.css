@@ -1,0 +1,452 @@
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Galaxy Background Animations */
+@keyframes galaxy-bg-pulse {
+  0%, 100% { opacity: 0.25; }
+  50% { opacity: 0.4; }
+}
+
+@keyframes star-pulse {
+  0%, 100% { opacity: var(--start-opacity, 0.8); }
+  50% { opacity: calc(var(--start-opacity, 0.8) * 0.3); }
+}
+
+@keyframes star-move {
+  0% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+  100% { transform: translateY(0); }
+}
+
+@keyframes particle-move {
+  0% { 
+    transform: translate(0, 0) rotate(0deg);
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 0.8;
+  }
+  100% {
+    transform: translate(var(--move-x, 50px), var(--move-y, 50px)) rotate(360deg);
+    opacity: 0.4;
+  }
+}
+
+@keyframes shooting-star {
+  0% {
+    transform: translateX(-200px) rotate(-30deg);
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(2000px) rotate(-30deg);
+    opacity: 0;
+  }
+}
+
+@keyframes milkyway-rotate {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes ring-rotate {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes ring-rotate-reverse {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(-360deg); }
+}
+
+@keyframes galaxy-center-pulse {
+  0%, 100% {
+    transform: scale(0.8);
+    opacity: 0.3;
+  }
+  50% {
+    transform: scale(1.4);
+    opacity: 0.6;
+  }
+}
+
+.galaxy-bg-animation {
+  animation: galaxy-bg-pulse 20s ease-in-out infinite;
+}
+
+.star-animation {
+  --start-opacity: attr(data-opacity);
+  animation: 
+    star-pulse var(--duration, 3s) ease-in-out infinite var(--delay, 0s),
+    star-move var(--duration, 3s) ease-in-out infinite var(--delay, 0s);
+}
+
+.particle-animation {
+  --move-x: calc(50px * var(--direction, 1));
+  --move-y: calc(50px * var(--direction, 1));
+  animation: particle-move var(--duration, 10s) ease-in-out infinite var(--delay, 0s);
+}
+
+.shooting-star-animation {
+  animation: shooting-star var(--duration, 3s) ease-in-out infinite var(--delay, 5s);
+}
+
+.milkyway-animation {
+  animation: milkyway-rotate 200s linear infinite;
+}
+
+.ring-animation {
+  animation: ring-rotate 30s linear infinite;
+}
+
+.ring-animation-reverse {
+  animation: ring-rotate-reverse 25s linear infinite;
+}
+
+.galaxy-center-animation {
+  animation: galaxy-center-pulse var(--duration, 8s) ease-in-out infinite var(--delay, 0s);
+}
+
+/* Cyberpunk Background Animations */
+@keyframes cyberpunk-bg-pulse {
+  0%, 100% { opacity: 0.25; }
+  50% { opacity: 0.4; }
+}
+
+@keyframes cyberpunk-line-move {
+  0% { transform: translateX(-50px); }
+  100% { transform: translateX(50px); }
+}
+
+@keyframes cyberpunk-particle-move {
+  0% { 
+    transform: translate(0, 0) rotate(0deg);
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 0.8;
+  }
+  100% {
+    transform: translate(var(--move-x, 50px), var(--move-y, 50px)) rotate(360deg);
+    opacity: 0.4;
+  }
+}
+
+@keyframes cyberpunk-shooting-star {
+  0% {
+    transform: translateX(-200px) rotate(-30deg);
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(2000px) rotate(-30deg);
+    opacity: 0;
+  }
+}
+
+.cyberpunk-bg-animation {
+  animation: cyberpunk-bg-pulse 12s ease-in-out infinite;
+}
+
+.cyberpunk-line-animation {
+  animation: cyberpunk-line-move var(--duration, 30s) linear infinite var(--delay, 0s);
+}
+
+.cyberpunk-particle-animation {
+  --move-x: calc(50px * var(--direction, 1));
+  --move-y: calc(50px * var(--direction, 1));
+  animation: cyberpunk-particle-move var(--duration, 10s) ease-in-out infinite var(--delay, 0s);
+}
+
+.cyberpunk-shooting-star-animation {
+  animation: cyberpunk-shooting-star var(--duration, 3s) ease-in-out infinite var(--delay, 5s);
+}
+
+/* Existing theme classes */
+@layer components {
+  .theme-glxy {
+    /* Base surfaces */
+    --background: 230 20% 6%; /* deep space */
+    --foreground: 210 40% 98%;
+    --card: 230 20% 8%;
+    --card-foreground: 210 40% 98%;
+    --popover: 230 20% 8%;
+    --popover-foreground: 210 40% 98%;
+
+    /* Brand colors (galaxy violet + electric cyan) */
+    --primary: 262 83% 58%;   /* violet */
+    --primary-foreground: 210 40% 98%;
+    --secondary: 189 72% 56%; /* cyan */
+    --secondary-foreground: 210 40% 8%;
+    --accent: 316 100% 50%;   /* magenta accent */
+    --accent-foreground: 210 40% 98%;
+
+    /* System colors */
+    --muted: 230 20% 12%;
+    --muted-foreground: 210 15% 70%;
+    --destructive: 0 72% 50%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 230 20% 18%;
+    --input: 230 20% 18%;
+    --ring: 262 83% 58%;
+
+    /* Gaming palette mapping to brand */
+    --gaming-primary: var(--primary);
+    --gaming-secondary: var(--secondary);
+    --gaming-accent: var(--accent);
+  }
+}
+
+@layer base {
+  :root {
+    --background: 210 40% 2%;
+    --foreground: 210 40% 98%;
+    --card: 210 40% 3%;
+    --card-foreground: 210 40% 98%;
+    --popover: 210 40% 3%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 142 76% 36%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 210 40% 6%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 210 40% 6%;
+    --muted-foreground: 210 40% 65%;
+    --accent: 142 76% 36%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 62% 50%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 210 40% 12%;
+    --input: 210 40% 12%;
+    --ring: 142 76% 36%;
+    --radius: 0.75rem;
+
+    /* Gaming colors */
+    --gaming-primary: 142 76% 36%;
+    --gaming-secondary: 262 83% 58%;
+    --gaming-accent: 47 96% 53%;
+    --gaming-success: 120 76% 50%;
+    --gaming-warning: 47 96% 53%;
+    --gaming-error: 0 76% 60%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: var(--font-inter), sans-serif;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-orbitron), monospace;
+  }
+}
+
+@layer utilities {
+  .font-inter {
+    font-family: var(--font-inter), sans-serif;
+  }
+  .font-orbitron {
+    font-family: var(--font-orbitron), monospace;
+  }
+
+  /* Gaming utilities */
+  .bg-gaming-primary {
+    background-color: hsl(var(--gaming-primary));
+  }
+  .bg-gaming-secondary {
+    background-color: hsl(var(--gaming-secondary));
+  }
+  .bg-gaming-accent {
+    background-color: hsl(var(--gaming-accent));
+  }
+  .text-gaming-primary {
+    color: hsl(var(--gaming-primary));
+  }
+  .text-gaming-secondary {
+    color: hsl(var(--gaming-secondary));
+  }
+  .text-gaming-accent {
+    color: hsl(var(--gaming-accent));
+  }
+
+  /* Glowing effects */
+  .glow-primary {
+    box-shadow: 0 0 20px hsl(var(--gaming-primary) / 0.3);
+  }
+  .glow-secondary {
+    box-shadow: 0 0 20px hsl(var(--gaming-secondary) / 0.3);
+  }
+  .glow-accent {
+    box-shadow: 0 0 20px hsl(var(--gaming-accent) / 0.3);
+  }
+
+  /* Animations */
+  .animate-glow {
+    animation: glow 2s ease-in-out infinite alternate;
+  }
+  
+  @keyframes glow {
+    from {
+      box-shadow: 0 0 20px hsl(var(--gaming-primary) / 0.3);
+    }
+    to {
+      box-shadow: 0 0 40px hsl(var(--gaming-primary) / 0.6);
+    }
+  }
+
+  .animate-float {
+    animation: float 6s ease-in-out infinite;
+  }
+  
+  @keyframes float {
+    0%, 100% {
+      transform: translateY(0px);
+    }
+    50% {
+      transform: translateY(-10px);
+    }
+  }
+
+  /* Gaming grid background */
+  .gaming-grid {
+    background-image: 
+      linear-gradient(rgba(34, 197, 94, 0.1) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(34, 197, 94, 0.1) 1px, transparent 1px);
+    background-size: 50px 50px;
+    position: relative;
+  }
+  
+  .gaming-grid::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: radial-gradient(circle at center, transparent 0%, rgba(3, 7, 18, 0.8) 100%);
+    pointer-events: none;
+  }
+
+  /* Glass morphism */
+  .glass {
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  /* Gaming card */
+  .gaming-card {
+    background: linear-gradient(135deg, rgba(34, 197, 94, 0.1) 0%, rgba(147, 51, 234, 0.1) 100%);
+    border: 1px solid rgba(34, 197, 94, 0.2);
+    backdrop-filter: blur(10px);
+  }
+
+  /* Neon text */
+  .neon-text {
+    text-shadow: 
+      0 0 5px hsl(var(--gaming-primary)),
+      0 0 10px hsl(var(--gaming-primary)),
+      0 0 15px hsl(var(--gaming-primary));
+  }
+
+  /* Gradient text */
+  .gradient-text {
+    background: linear-gradient(135deg, hsl(var(--gaming-primary)), hsl(var(--gaming-secondary)));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: hsl(var(--background));
+}
+
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--gaming-primary));
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--gaming-primary) / 0.8);
+}
+
+/* Loading animations */
+.loading-dots {
+  display: inline-block;
+  position: relative;
+  width: 80px;
+  height: 80px;
+}
+
+.loading-dots div {
+  position: absolute;
+  top: 33px;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: hsl(var(--gaming-primary));
+  animation-timing-function: cubic-bezier(0, 1, 1, 0);
+}
+
+.loading-dots div:nth-child(1) {
+  left: 8px;
+  animation: loading-dots1 0.6s infinite;
+}
+
+.loading-dots div:nth-child(2) {
+  left: 8px;
+  animation: loading-dots2 0.6s infinite;
+}
+
+.loading-dots div:nth-child(3) {
+  left: 32px;
+  animation: loading-dots2 0.6s infinite;
+}
+
+.loading-dots div:nth-child(4) {
+  left: 56px;
+  animation: loading-dots3 0.6s infinite;
+}
+
+@keyframes loading-dots1 {
+  0% {
+    transform: scale(0);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes loading-dots3 {
+  0% {
+    transform: scale(1);
+  }
+  100% {
+    transform: scale(0);
+  }
+}
+
+@keyframes loading-dots2 {
+  0% {
+    transform: translate(0, 0);
+  }
+  100% {
+    transform: translate(24px, 0);
+  }
+}

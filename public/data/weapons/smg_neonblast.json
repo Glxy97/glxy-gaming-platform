@@ -1,0 +1,40 @@
+{
+  "id": "smg_neonblast",
+  "name": "Neon Blast SMG",
+  "type": "smg",
+  "ammoType": "45acp",
+  "damage": 12,
+  "fireRate": 15,
+  "magazineSize": 40,
+  "reloadTime": 2.0,
+  "recoil": {
+    "horizontal": 0.4,
+    "vertical": 0.8,
+    "recovery": 0.6
+  },
+  "spread": {
+    "min": 0.03,
+    "max": 0.15,
+    "increase": 0.02,
+    "decrease": 0.04
+  },
+  "range": 150,
+  "penetration": 0.3,
+  "firstPersonModel": {
+    "scale": [0.9, 0.9, 0.9],
+    "position": [0.28, -0.38, -0.6],
+    "rotation": [0, 0, 0]
+  },
+  "animations": {
+    "fire": "fire",
+    "reload": "reload",
+    "idle": "idle",
+    "draw": "draw",
+    "holster": "holster"
+  },
+  "sounds": {
+    "fire": "/sounds/weapons/smg_fire.wav",
+    "reload": "/sounds/weapons/smg_reload.wav",
+    "empty": "/sounds/weapons/smg_empty.wav"
+  }
+}

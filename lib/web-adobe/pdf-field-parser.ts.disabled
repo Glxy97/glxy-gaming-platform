@@ -1,0 +1,584 @@
+/**
+ * PDF Form Field Parser
+ * Extrahiert und analysiert Formularfelder aus PDF-Dokumenten
+ *
+ * NOTE: Updated to use local type definitions instead of pdfjs-dist
+ */
+
+// Use local type alias instead of importing from pdfjs-dist
+type PDFDocumentProxy = any
+
+import type {
+  FormField,
+  FormFieldType,
+  FieldRect,
+  FieldMetadata,
+  PdfDocument,
+} from '@/types/pdf-viewer'
+import type { PdfMetadata } from '@/types/pdf-services'
+
+// NOTE: pdfRenderer import removed (pdf-renderer.ts disabled for SSR compatibility)
+// This file is kept for type compatibility but field parsing now happens via:
+// - Adobe PDF Embed API (client-side viewing)
+// - pdf-lib (server-side field extraction)
+
+// ============================================================================
+// PDF.js Annotation Types (Subset)
+// ============================================================================
+
+interface PdfAnnotation {
+  id: string
+  subtype: string
+  fieldName?: string
+  fieldType?: string
+  fieldValue?: string | boolean
+  rect: number[] // [x1, y1, x2, y2]
+  fieldFlags?: number
+  defaultValue?: string | boolean
+  maxLen?: number
+  multiLine?: boolean
+  readOnly?: boolean
+  required?: boolean
+  buttonValue?: string
+  checkBox?: boolean
+  radioButton?: boolean
+  options?: Array<{ exportValue: string; displayValue: string }>
+  defaultAppearance?: string
+  alignment?: number
+  borderColor?: number[]
+  backgroundColor?: number[]
+  textColor?: number[]
+  borderWidth?: number
+  alternativeText?: string
+}
+
+// ============================================================================
+// Field Parser Class
+// ============================================================================
+
+export class PdfFieldParser {
+  /**
+   * Komplettes PDF-Dokument parsen und Formularfelder extrahieren
+   */
+  async parseDocument(pdfDocument: PDFDocumentProxy): Promise<PdfDocument> {
+    const startTime = Date.now()
+
+    // Metadaten extrahieren
+    const metadata = await this.extractMetadata(pdfDocument)
+
+    // Alle Seiten nach Formularfeldern durchsuchen
+    const fields: FormField[] = []
+    const totalPages = pdfDocument.numPages
+
+    for (let pageNum = 1; pageNum <= totalPages; pageNum++) {
+      const pageFields = await this.parsePageFields(pdfDocument, pageNum)
+      fields.push(...pageFields)
+    }
+
+    const parseTime = Date.now() - startTime
+    console.log(
+      `[PdfFieldParser] ${fields.length} Felder in ${parseTime}ms geparst`
+    )
+
+    return {
+      proxy: pdfDocument,
+      url: '', // Wird später gesetzt
+      fileName: '', // Wird später gesetzt
+      fileSize: 0, // Wird später gesetzt
+      totalPages,
+      metadata,
+      fields,
+    }
+  }
+
+  /**
+   * Formularfelder einer einzelnen Seite extrahieren
+   */
+  async parsePageFields(
+    pdfDocument: PDFDocumentProxy,
+    pageNumber: number
+  ): Promise<FormField[]> {
+    const page = await pdfRenderer.getPage(pageNumber)
+    const annotations = await page.getAnnotations()
+
+    const fields: FormField[] = []
+
+    for (const annotation of annotations) {
+      const field = this.parseAnnotation(annotation as PdfAnnotation, pageNumber)
+      if (field) {
+        fields.push(field)
+      }
+    }
+
+    return fields
+  }
+
+  /**
+   * Einzelne Annotation in FormField konvertieren
+   */
+  private parseAnnotation(
+    annotation: PdfAnnotation,
+    pageNumber: number
+  ): FormField | null {
+    // Nur Widget-Annotations (Formularfelder)
+    if (annotation.subtype !== 'Widget') {
+      return null
+    }
+
+    // Feldtyp bestimmen
+    const fieldType = this.determineFieldType(annotation)
+    if (!fieldType) {
+      return null
+    }
+
+    // Eindeutige ID generieren
+    const id = annotation.id || `field_${pageNumber}_${Math.random().toString(36).substr(2, 9)}`
+    const name = annotation.fieldName || id
+    const displayName = this.generateDisplayName(name)
+
+    // Rect extrahieren und konvertieren
+    const rect = this.parseRect(annotation.rect)
+
+    // Wert extrahieren
+    const value = this.parseValue(annotation, fieldType)
+
+    // Metadaten extrahieren
+    const metadata = this.parseMetadata(annotation)
+
+    // FormField erstellen
+    const field: FormField = {
+      id,
+      name,
+      displayName,
+      type: fieldType,
+      value,
+      defaultValue: annotation.defaultValue,
+      page: pageNumber,
+      rect,
+      tabIndex: undefined, // TODO: Tab-Order aus PDF extrahieren
+      required: annotation.required || false,
+      readOnly: annotation.readOnly || false,
+      multiline: annotation.multiLine || false,
+      maxLength: annotation.maxLen,
+      options: this.parseOptions(annotation),
+      metadata,
+    }
+
+    return field
+  }
+
+  /**
+   * Feldtyp aus Annotation bestimmen
+   */
+  private determineFieldType(annotation: PdfAnnotation): FormFieldType | null {
+    const fieldType = annotation.fieldType
+
+    if (!fieldType) {
+      return null
+    }
+
+    // PDF Field Types: Tx (Text), Btn (Button/Checkbox/Radio), Ch (Choice)
+    switch (fieldType) {
+      case 'Tx':
+        return 'text'
+
+      case 'Btn':
+        if (annotation.checkBox) {
+          return 'checkbox'
+        }
+        if (annotation.radioButton) {
+          return 'radio'
+        }
+        // Push-Buttons ignorieren (nicht interaktiv für Formulare)
+        return null
+
+      case 'Ch':
+        return 'dropdown'
+
+      case 'Sig':
+        return 'signature'
+
+      default:
+        console.warn(`[PdfFieldParser] Unbekannter Feldtyp: ${fieldType}`)
+        return null
+    }
+  }
+
+  /**
+   * Feldwert extrahieren
+   */
+  private parseValue(
+    annotation: PdfAnnotation,
+    fieldType: FormFieldType
+  ): string | boolean | null {
+    const rawValue = annotation.fieldValue
+
+    if (rawValue === undefined || rawValue === null) {
+      return null
+    }
+
+    switch (fieldType) {
+      case 'checkbox':
+        // Checkbox: true wenn aktiviert (buttonValue ist On-State)
+        return rawValue === annotation.buttonValue || rawValue === 'Yes' || rawValue === 'On'
+
+      case 'text':
+      case 'dropdown':
+      case 'signature':
+        return String(rawValue)
+
+      case 'radio':
+        return String(rawValue)
+
+      default:
+        return String(rawValue)
+    }
+  }
+
+  /**
+   * Rect-Koordinaten parsen
+   */
+  private parseRect(rect: number[]): FieldRect {
+    if (!rect || rect.length !== 4) {
+      return { x: 0, y: 0, width: 0, height: 0 }
+    }
+
+    const [x1, y1, x2, y2] = rect
+
+    return {
+      x: Math.min(x1, x2),
+      y: Math.min(y1, y2),
+      width: Math.abs(x2 - x1),
+      height: Math.abs(y2 - y1),
+    }
+  }
+
+  /**
+   * Optionen für Dropdown/Radio extrahieren
+   */
+  private parseOptions(annotation: PdfAnnotation) {
+    if (!annotation.options || !Array.isArray(annotation.options)) {
+      return undefined
+    }
+
+    return annotation.options.map((opt) => ({
+      label: opt.displayValue || opt.exportValue,
+      value: opt.exportValue,
+      selected: annotation.fieldValue === opt.exportValue,
+    }))
+  }
+
+  /**
+   * Metadaten extrahieren
+   */
+  private parseMetadata(annotation: PdfAnnotation): FieldMetadata {
+    // Default Appearance parsen (Font, Size, Color)
+    const daInfo = this.parseDefaultAppearance(annotation.defaultAppearance)
+
+    return {
+      pdfFieldName: annotation.fieldName || '',
+      fontName: daInfo.fontName,
+      fontSize: daInfo.fontSize,
+      textColor: annotation.textColor as [number, number, number] | undefined,
+      backgroundColor: annotation.backgroundColor as [number, number, number] | undefined,
+      borderColor: annotation.borderColor as [number, number, number] | undefined,
+      borderWidth: annotation.borderWidth,
+      alignment: this.parseAlignment(annotation.alignment),
+      checkboxState: annotation.buttonValue,
+      tooltip: annotation.alternativeText,
+    }
+  }
+
+  /**
+   * Default Appearance (DA) String parsen
+   * Format: "/Helv 12 Tf 0 0 0 rg"
+   */
+  private parseDefaultAppearance(da?: string): {
+    fontName?: string
+    fontSize?: number
+  } {
+    if (!da) {
+      return {}
+    }
+
+    const fontMatch = da.match(/\/(\w+)\s+([\d.]+)\s+Tf/)
+    if (!fontMatch) {
+      return {}
+    }
+
+    return {
+      fontName: fontMatch[1],
+      fontSize: parseFloat(fontMatch[2]),
+    }
+  }
+
+  /**
+   * Text-Alignment parsen
+   */
+  private parseAlignment(
+    alignment?: number
+  ): 'left' | 'center' | 'right' | undefined {
+    if (alignment === undefined || alignment === null) {
+      return undefined
+    }
+
+    switch (alignment) {
+      case 0:
+        return 'left'
+      case 1:
+        return 'center'
+      case 2:
+        return 'right'
+      default:
+        return 'left'
+    }
+  }
+
+  /**
+   * Display-Name aus System-Name generieren
+   * z.B. "firstName" → "First Name"
+   */
+  private generateDisplayName(systemName: string): string {
+    return systemName
+      .replace(/([A-Z])/g, ' $1') // camelCase → spaces
+      .replace(/[_-]/g, ' ') // Underscores/Hyphens → spaces
+      .replace(/\s+/g, ' ') // Multiple spaces → single
+      .trim()
+      .split(' ')
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(' ')
+  }
+
+  /**
+   * PDF-Metadaten extrahieren
+   */
+  async extractMetadata(pdfDocument: PDFDocumentProxy): Promise<PdfMetadata> {
+    const metadata = await pdfDocument.getMetadata()
+    const info = metadata.info as any
+
+    return {
+      title: info.Title,
+      author: info.Author,
+      subject: info.Subject,
+      keywords: info.Keywords ? info.Keywords.split(',').map((k: string) => k.trim()) : undefined,
+      creator: info.Creator,
+      producer: info.Producer,
+      creationDate: info.CreationDate ? this.parsePdfDate(info.CreationDate) : undefined,
+      modificationDate: info.ModDate ? this.parsePdfDate(info.ModDate) : undefined,
+      pageCount: pdfDocument.numPages,
+      fileSize: 0, // TODO: Dateigröße aus Blob ermitteln
+      version: info.PDFFormatVersion,
+      encrypted: info.IsEncrypted || false,
+      hasFormFields: await this.hasFormFields(pdfDocument),
+    }
+  }
+
+  /**
+   * Prüfen ob PDF Formularfelder hat
+   */
+  private async hasFormFields(pdfDocument: PDFDocumentProxy): Promise<boolean> {
+    try {
+      const page = await pdfDocument.getPage(1)
+      const annotations = await page.getAnnotations()
+      return annotations.some((ann: any) => ann.subtype === 'Widget')
+    } catch {
+      return false
+    }
+  }
+
+  /**
+   * PDF-Datum parsen (Format: D:YYYYMMDDHHmmSS)
+   */
+  private parsePdfDate(dateStr: string): Date | undefined {
+    try {
+      const match = dateStr.match(/D:(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})/)
+      if (!match) {
+        return undefined
+      }
+
+      const [, year, month, day, hour, minute, second] = match
+      return new Date(
+        parseInt(year),
+        parseInt(month) - 1,
+        parseInt(day),
+        parseInt(hour),
+        parseInt(minute),
+        parseInt(second)
+      )
+    } catch {
+      return undefined
+    }
+  }
+
+  /**
+   * Felder nach Seite gruppieren
+   */
+  groupFieldsByPage(fields: FormField[]): Map<number, FormField[]> {
+    const grouped = new Map<number, FormField[]>()
+
+    for (const field of fields) {
+      const pageFields = grouped.get(field.page) || []
+      pageFields.push(field)
+      grouped.set(field.page, pageFields)
+    }
+
+    return grouped
+  }
+
+  /**
+   * Feld nach ID suchen
+   */
+  findFieldById(fields: FormField[], id: string): FormField | undefined {
+    return fields.find((f) => f.id === id)
+  }
+
+  /**
+   * Feld nach Name suchen
+   */
+  findFieldByName(fields: FormField[], name: string): FormField | undefined {
+    return fields.find((f) => f.name === name)
+  }
+
+  /**
+   * Felder nach Typ filtern
+   */
+  filterFieldsByType(
+    fields: FormField[],
+    type: FormFieldType
+  ): FormField[] {
+    return fields.filter((f) => f.type === type)
+  }
+
+  /**
+   * Validierung: Feld-Duplikate finden
+   */
+  findDuplicateFields(fields: FormField[]): FormField[] {
+    const seen = new Set<string>()
+    const duplicates: FormField[] = []
+
+    for (const field of fields) {
+      if (seen.has(field.name)) {
+        duplicates.push(field)
+      } else {
+        seen.add(field.name)
+      }
+    }
+
+    return duplicates
+  }
+
+  /**
+   * Validierung: Felder ohne Rect
+   */
+  findInvalidFields(fields: FormField[]): FormField[] {
+    return fields.filter(
+      (f) => f.rect.width <= 0 || f.rect.height <= 0 || !f.name
+    )
+  }
+}
+
+// ============================================================================
+// Export Singleton Instance
+// ============================================================================
+
+export const pdfFieldParser = new PdfFieldParser()
+
+// ============================================================================
+// Utility Functions
+// ============================================================================
+
+/**
+ * JSON-Export für Formularfelder
+ */
+export function exportFieldsToJson(
+  fields: FormField[],
+  documentName: string
+): string {
+  const data = {
+    documentName,
+    exportedAt: new Date().toISOString(),
+    version: '1.0.0',
+    fieldCount: fields.length,
+    fields: fields.map((f) => ({
+      id: f.id,
+      name: f.name,
+      displayName: f.displayName,
+      type: f.type,
+      value: f.value,
+      page: f.page,
+      rect: f.rect,
+      required: f.required,
+      readOnly: f.readOnly,
+      options: f.options,
+    })),
+  }
+
+  return JSON.stringify(data, null, 2)
+}
+
+/**
+ * JSON-Import für Formularfelder
+ */
+export function importFieldsFromJson(json: string): FormField[] {
+  try {
+    const data = JSON.parse(json)
+    if (!data.fields || !Array.isArray(data.fields)) {
+      throw new Error('Ungültiges Format: "fields" Array fehlt')
+    }
+
+    return data.fields.map((f: any) => ({
+      id: f.id,
+      name: f.name,
+      displayName: f.displayName,
+      type: f.type as FormFieldType,
+      value: f.value,
+      page: f.page,
+      rect: f.rect,
+      required: f.required || false,
+      readOnly: f.readOnly || false,
+      multiline: f.multiline || false,
+      options: f.options,
+      metadata: {} as FieldMetadata,
+    }))
+  } catch (error) {
+    throw new Error(`JSON-Import fehlgeschlagen: ${error}`)
+  }
+}
+
+/**
+ * FDF-Export (Forms Data Format)
+ * HINWEIS: PDF.js hat keine native FDF-API, daher Custom-Implementation
+ */
+export function exportFieldsToFdf(
+  fields: FormField[],
+  pdfFileName: string
+): string {
+  const fdfHeader = `%FDF-1.2
+1 0 obj
+<<
+/FDF << /Fields [`
+
+  const fdfFields = fields
+    .map((field) => {
+      const value =
+        typeof field.value === 'boolean'
+          ? field.value
+            ? '/Yes'
+            : '/Off'
+          : `(${field.value || ''})`
+
+      return `<< /T (${field.name}) /V ${value} >>`
+    })
+    .join(' ')
+
+  const fdfFooter = `] /F (${pdfFileName}) >>
+>>
+endobj
+trailer
+<<
+/Root 1 0 R
+>>
+%%EOF`
+
+  return fdfHeader + fdfFields + fdfFooter
+}

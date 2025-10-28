@@ -1,0 +1,492 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "windows"]
+}
+
+datasource db {
+    provider = "postgresql"
+    url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  USER
+  MODERATOR
+  ADMIN
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  username  String?  @unique
+  password  String   @default("")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Profile
+  name      String?
+  image     String?
+  avatar    String?
+  bio       String?
+  level     Int      @default(1)
+  globalXP  Int      @default(0)
+  coins     Int      @default(100)
+
+  // Security fields
+  loginAttempts Int?      @default(0)
+  lockedUntil   DateTime?
+  lastLogin     DateTime?
+  mfaEnabled    Boolean   @default(false) @map("mfa_enabled")
+  mfaSecret     String?   @map("mfa_secret")
+
+  // Role-based access control
+  role UserRole @default(USER)
+
+  // Email verification
+  emailVerified    DateTime? @map("email_verified")
+  verificationToken String? @map("verification_token")
+  tokenExpires     DateTime? @map("token_expires")
+
+  // Gaming performance
+  totalGamesPlayed Int @default(0) @map("total_games_played")
+  totalScore       Int @default(0) @map("total_score")
+
+  // Relations
+  accounts      Account[]
+  sessions      Session[]
+  gameStats     GameStats[]
+  gameScores    GameScore[]
+  achievements  UserAchievement[]
+  chatMessages  ChatMessage[]
+  gameRooms     GameRoom[]
+  playerInRooms PlayerInRoom[]
+      securityEvents SecurityEvent[]
+      pdfDocuments  PdfDocument[]
+      auditLogs     AuditLog[]
+
+      // Performance indexes
+  @@index([email])
+  @@index([username])
+  @@index([role])
+  @@index([level, globalXP])
+  @@index([lastLogin])
+  @@index([lockedUntil])
+  @@index([verificationToken])
+  @@index([emailVerified])
+  @@map("users")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expires])
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@index([expires])
+  @@map("verificationtokens")
+}
+
+model GameStats {
+  id       String @id @default(cuid())
+  userId   String
+  gameType String
+  
+  // Game-specific XP
+  xp       Int @default(0)
+  level    Int @default(1)
+  
+  // Stats
+  wins     Int @default(0)
+  losses   Int @default(0)
+  draws    Int @default(0)
+  
+  // Game-specific stats (JSON for flexibility)
+  stats    Json @default("{}")
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, gameType])
+  @@index([userId])
+  @@index([gameType])
+  @@index([gameType, level])
+  @@index([gameType, wins])
+  @@index([gameType, xp])
+  @@map("game_stats")
+}
+
+model Achievement {
+  id          String @id @default(cuid())
+  name        String @unique
+  description String
+  icon        String
+  xpReward    Int
+  gameType    String?
+  
+  // Conditions (JSON for flexibility)
+  conditions  Json @default("{}")
+  
+  userAchievements UserAchievement[]
+  
+  @@index([gameType])
+  @@index([xpReward])
+  @@map("achievements")
+}
+
+model UserAchievement {
+  id            String   @id @default(cuid())
+  userId        String
+  achievementId String
+  unlockedAt    DateTime @default(now())
+  
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  achievement Achievement @relation(fields: [achievementId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, achievementId])
+  @@index([userId])
+  @@index([achievementId])
+  @@index([unlockedAt])
+  @@map("user_achievements")
+}
+
+model GameRoom {
+  id       String @id @default(cuid())
+  name     String
+  gameType String
+  status   String @default("waiting") // waiting, playing, finished
+  
+  // Room settings
+  maxPlayers Int    @default(2)
+  isPublic   Boolean @default(true)
+  settings   Json    @default("{}")
+  
+  // Game data
+  gameData Json @default("{}")
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relations
+  hostId  String
+  host    User   @relation(fields: [hostId], references: [id])
+  players PlayerInRoom[]
+  messages ChatMessage[]
+  
+  // Performance indexes
+  @@index([gameType])
+  @@index([status])
+  @@index([gameType, status])
+  @@index([gameType, status, isPublic])
+  @@index([hostId])
+  @@index([createdAt])
+  @@index([updatedAt])
+  @@map("game_rooms")
+}
+
+model PlayerInRoom {
+  id       String @id @default(cuid())
+  userId   String
+  roomId   String
+  joinedAt DateTime @default(now())
+  
+  // Player state in room
+  isReady  Boolean @default(false)
+  position Int?
+  
+  user User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  room GameRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, roomId])
+  @@index([userId])
+  @@index([roomId])
+  @@index([joinedAt])
+  @@index([isReady])
+  @@map("players_in_rooms")
+}
+
+model ChatMessage {
+  id       String @id @default(cuid())
+  content  String
+  userId   String
+  roomId   String?
+
+  // Message type: global, room, system
+  type     String @default("room")
+
+  createdAt DateTime @default(now())
+
+  user User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  room GameRoom? @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  // Performance indexes
+  @@index([userId])
+  @@index([roomId])
+  @@index([type])
+  @@index([createdAt])
+  @@index([roomId, createdAt])
+  @@index([type, createdAt])
+  @@map("chat_messages")
+}
+
+model GameScore {
+  id        String   @id @default(cuid())
+  userId    String
+  game      String   // TETRIS, CONNECT4, TICTACTOE, etc.
+  gameMode  String   // classic, ai, local, online
+  score     Int      @default(0)
+
+  // Game-specific metadata (JSON for flexibility)
+  metadata  Json     @default("{}")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Performance indexes
+  @@index([userId])
+  @@index([game])
+  @@index([gameMode])
+  @@index([score])
+  @@index([game, gameMode])
+  @@index([game, score])
+  @@index([game, gameMode, score])
+  @@index([userId, game])
+  @@index([userId, game, gameMode])
+  @@index([createdAt])
+  @@index([game, createdAt])
+  @@map("game_scores")
+}
+
+model SecurityEvent {
+  id        String   @id @default(cuid())
+  type      String   // login_failure, brute_force, sql_injection, xss_attempt, etc.
+  userId    String?
+  email     String?
+  ip        String
+  userAgent String?
+  details   Json     @default("{}")
+  severity  String   // low, medium, high, critical
+  createdAt DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Performance indexes
+  @@index([type])
+  @@index([severity])
+  @@index([ip])
+  @@index([createdAt])
+  @@index([type, severity])
+  @@index([createdAt, severity])
+  @@map("security_events")
+}
+
+// ============================================
+// = Web-Adobe PDF Form Management Models
+// ============================================
+
+enum PdfDocumentStatus {
+  DRAFT
+  ANALYZING
+  REVIEW
+  SYNCED
+  ERROR
+}
+
+model PdfDocument {
+  id          String            @id @default(cuid())
+  userId      String
+  title       String
+  filename    String
+  storagePath String            @map("storage_path")
+  status      PdfDocumentStatus @default(DRAFT)
+  checksum    String?
+
+  // Metadata
+  pageCount   Int?              @map("page_count")
+  fileSize    Int?              @map("file_size")
+
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  // Relations
+  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fields      PdfField[]
+
+  // Performance indexes
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([userId, status])
+  @@map("pdf_documents")
+}
+
+enum PdfFieldStatus {
+  DRAFT
+  PENDING_REVIEW
+  APPROVED
+  SYNCED
+}
+
+model PdfField {
+  id              String         @id @default(cuid())
+  documentId      String         @map("document_id")
+
+  // PDF Field identification
+  pdfName         String         @map("pdf_name")
+  displayLabel    String?        @map("display_label")
+  groupName       String?        @map("group_name")
+  fieldType       String         @default("text") @map("field_type")
+
+  // Validation
+  required        Boolean        @default(false)
+  validationPattern String?      @map("validation_pattern")
+
+  // DataPad Integration
+  datapadFieldId  String?        @map("datapad_field_id")
+  suggestions     Json?          @default("{}")
+
+  // Position in PDF (normalized 0-1)
+  x               Float          @default(0.0)
+  y               Float          @default(0.0)
+  width           Float          @default(0.0)
+  height          Float          @default(0.0)
+  pageNumber      Int            @default(1) @map("page_number")
+
+  status          PdfFieldStatus @default(DRAFT)
+  updatedAt       DateTime       @updatedAt
+
+  // Relations
+  document        PdfDocument    @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  // Performance indexes
+  @@index([documentId])
+  @@index([status])
+  @@index([datapadFieldId])
+  @@index([documentId, status])
+  @@map("pdf_fields")
+}
+
+enum AuditAction {
+  // Authentication & Authorization
+  LOGIN
+  LOGOUT
+  LOGIN_FAILED
+  PASSWORD_CHANGE
+  ROLE_CHANGE
+  PERMISSION_GRANTED
+  PERMISSION_REVOKED
+  
+  // User Management
+  USER_CREATED
+  USER_UPDATED
+  USER_DELETED
+  USER_BANNED
+  USER_UNBANNED
+  
+  // Game Actions
+  GAME_STARTED
+  GAME_JOINED
+  GAME_LEFT
+  GAME_FINISHED
+  CHEAT_DETECTED
+  MOVE_VALIDATED
+  MOVE_REJECTED
+  
+  // Admin Actions
+  ADMIN_ACCESS_GRANTED
+  ADMIN_ACCESS_DENIED
+  SYSTEM_CONFIG_CHANGED
+  BULK_OPERATION
+  
+  // PDF Operations
+  PDF_UPLOADED
+  PDF_PROCESSED
+  PDF_DELETED
+  FIELD_EXTRACTED
+  FIELD_UPDATED
+  
+  // Security Events
+  SUSPICIOUS_ACTIVITY
+  RATE_LIMIT_EXCEEDED
+  INVALID_REQUEST
+  UNAUTHORIZED_ACCESS
+}
+
+enum AuditSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+model AuditLog {
+  id          String        @id @default(cuid())
+  userId      String?       @map("user_id")
+  sessionId   String?       @map("session_id")
+  ipAddress   String?       @map("ip_address")
+  userAgent   String?       @map("user_agent")
+  
+  // Action details
+  action      AuditAction
+  resource    String?       // e.g., "user", "game", "pdf", "admin"
+  resourceId  String?       @map("resource_id") // ID of the affected resource
+  
+  // Context
+  description String
+  severity    AuditSeverity @default(MEDIUM)
+  metadata    Json?         @default("{}")
+  
+  // Timestamps
+  createdAt   DateTime      @default(now()) @map("created_at")
+  
+  // Relations
+  user        User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  
+  // Performance indexes
+  @@index([userId])
+  @@index([action])
+  @@index([severity])
+  @@index([createdAt])
+  @@index([resource, resourceId])
+  @@index([userId, action])
+  @@index([severity, createdAt])
+  @@map("audit_logs")
+}

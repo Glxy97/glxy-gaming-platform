@@ -1,0 +1,43 @@
+{
+  "id": "sword_energy",
+  "name": "Energieschwert",
+  "category": "Melee",
+  "ammoId": "none",
+  "fireModes": ["melee"],
+  "rpm": 60,
+  "magazineSize": 1,
+  "reloadTime": 0,
+  "adsTime": 0,
+  "range": 2.0,
+  "damage": 50,
+  "recoilPattern": {
+    "horizontal": [],
+    "vertical": [],
+    "recovery": 1.0
+  },
+  "spread": {
+    "base": 0,
+    "max": 0,
+    "increasePerShot": 0,
+    "decreasePerSecond": 0,
+    "adsMultiplier": 1.0,
+    "movementMultiplier": 1.0
+  },
+  "penetration": {
+    "maxDepth": 0,
+    "powerRetention": 0
+  },
+  "melee": {
+    "swingDuration": 300,
+    "cooldown": 500,
+    "hitEffect": "energy_slash",
+    "swingSound": "sword_swing",
+    "hitSound": "sword_hit"
+  },
+  "visual": {
+    "model": "sword_energy",
+    "color": "#00ffff",
+    "glow": true,
+    "trail": true
+  }
+}

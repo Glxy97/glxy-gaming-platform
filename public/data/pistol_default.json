@@ -1,0 +1,40 @@
+{
+  "id": "pistol_default",
+  "name": "Standard-Pistole",
+  "type": "pistol",
+  "ammoType": "9mm",
+  "damage": 15,
+  "fireRate": 5,
+  "magazineSize": 15,
+  "reloadTime": 1.5,
+  "recoil": {
+    "horizontal": 0.2,
+    "vertical": 0.4,
+    "recovery": 0.7
+  },
+  "spread": {
+    "min": 0.01,
+    "max": 0.08,
+    "increase": 0.02,
+    "decrease": 0.03
+  },
+  "range": 50,
+  "penetration": 0.2,
+  "firstPersonModel": {
+    "scale": [0.8, 0.8, 0.8],
+    "position": [0.25, -0.35, -0.6],
+    "rotation": [0, 0, 0]
+  },
+  "animations": {
+    "fire": "fire",
+    "reload": "reload",
+    "idle": "idle",
+    "draw": "draw",
+    "holster": "holster"
+  },
+  "sounds": {
+    "fire": "/sounds/weapons/pistol_fire.wav",
+    "reload": "/sounds/weapons/pistol_reload.wav",
+    "empty": "/sounds/weapons/pistol_empty.wav"
+  }
+}
