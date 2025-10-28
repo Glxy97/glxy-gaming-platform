@@ -1,0 +1,81 @@
+/**
+ * GLXY Gaming Platform - Error Tracking Types
+ */
+
+export type ErrorSeverity = 'low' | 'medium' | 'high' | 'critical'
+
+export interface ErrorContext {
+  userAgent?: string
+  url?: string
+  line?: number
+  column?: number
+  severity?: ErrorSeverity
+  tags?: Record<string, string>
+  extra?: Record<string, any>
+  componentStack?: string
+  sessionId?: string
+  userId?: string
+  buildId?: string
+  deployment?: string
+  deviceInfo?: DeviceInfo
+  networkInfo?: NetworkInfo
+}
+
+export interface ErrorReport {
+  id: string
+  timestamp: number
+  message: string
+  stack?: string
+  type: string
+  severity: ErrorSeverity
+  context: ErrorContext
+  breadcrumbs: Breadcrumb[]
+  user: UserContext
+  fingerprint: string
+  tags: Record<string, string>
+  extra: Record<string, any>
+  count: number
+  firstSeen: number
+  lastSeen: number
+  url: string
+  release: string
+  environment: string
+}
+
+export interface Breadcrumb {
+  timestamp: number
+  message: string
+  category: string
+  level: 'debug' | 'info' | 'warning' | 'error'
+  data?: Record<string, any>
+}
+
+export interface UserContext {
+  id?: string
+  email?: string
+  username?: string
+  ip?: string
+  userAgent?: string
+  session?: string
+  role?: string
+}
+
+export interface DeviceInfo {
+  type: 'desktop' | 'mobile' | 'tablet'
+  os: string
+  browser: string
+  version: string
+  screenResolution: string
+  viewportSize: string
+  pixelRatio: number
+  hardwareConcurrency: number
+  memory: number
+  connection?: NetworkInfo
+}
+
+export interface NetworkInfo {
+  effectiveType: 'slow-2g' | '2g' | '3g' | '4g'
+  downlink: number
+  rtt: number
+  saveData: boolean
+}

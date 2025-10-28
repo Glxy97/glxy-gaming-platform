@@ -1,0 +1,76 @@
+version: '3.8'
+
+services:
+  app:
+    image: ghcr.io/glxy97/acobe_web_glxy_site:latest
+    container_name: glxy-gaming-app
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    environment:
+      # Database
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      - REDIS_URL=redis://redis:6379
+
+      # NextAuth v5 (AUTH_* statt NEXTAUTH_*)
+      - AUTH_URL=${AUTH_URL:-https://glxy.at}
+      - AUTH_SECRET=${AUTH_SECRET}  # openssl rand -base64 32
+      - AUTH_TRUST_HOST=true
+
+      # OAuth Providers
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+      - GITHUB_CLIENT_ID=${GITHUB_CLIENT_ID}
+      - GITHUB_CLIENT_SECRET=${GITHUB_CLIENT_SECRET}
+    networks:
+      - glxy-network
+    depends_on:
+      - postgres
+      - redis
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: glxy-gaming-db
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - glxy-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: glxy-gaming-redis
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+    networks:
+      - glxy-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+networks:
+  glxy-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:

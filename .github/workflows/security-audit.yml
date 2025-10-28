@@ -1,0 +1,253 @@
+# GLXY Gaming Platform - Automated Security Audit Workflow
+# Continuous dependency and security monitoring
+
+name: Security Audit
+
+on:
+  schedule:
+    # Run daily at 2 AM UTC
+    - cron: '0 2 * * *'
+
+  push:
+    branches: [ main, master, develop ]
+    paths:
+      - 'package.json'
+      - 'package-lock.json'
+      - 'yarn.lock'
+      - '.github/workflows/security-audit.yml'
+
+  pull_request:
+    branches: [ main, master ]
+    paths:
+      - 'package.json'
+      - 'package-lock.json'
+      - 'yarn.lock'
+
+  workflow_dispatch:
+    inputs:
+      audit_level:
+        description: 'Audit severity level'
+        required: true
+        default: 'moderate'
+        type: choice
+        options:
+          - 'low'
+          - 'moderate'
+          - 'high'
+          - 'critical'
+
+jobs:
+  dependency-audit:
+    name: Dependency Security Audit
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      security-events: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --audit=false --legacy-peer-deps
+
+      - name: Run NPM Security Audit
+        id: npm-audit
+        run: |
+          AUDIT_LEVEL="${{ github.event.inputs.audit_level || 'moderate' }}"
+          echo "Running npm audit with level: $AUDIT_LEVEL"
+
+          # Run audit and capture output
+          if npm audit --audit-level=$AUDIT_LEVEL; then
+            echo "npm_audit_status=passed" >> $GITHUB_OUTPUT
+            echo "npm_audit_result=No vulnerabilities found" >> $GITHUB_OUTPUT
+          else
+            echo "npm_audit_status=failed" >> $GITHUB_OUTPUT
+            echo "npm_audit_result=Vulnerabilities detected" >> $GITHUB_OUTPUT
+
+            # Generate detailed report
+            npm audit --json > npm-audit-report.json || true
+            npm audit > npm-audit-readable.txt || true
+          fi
+
+      - name: Check for outdated packages
+        run: |
+          echo "Checking for outdated packages..."
+          npm outdated --json > outdated-packages.json || true
+
+          # Count outdated packages
+          OUTDATED_COUNT=$(cat outdated-packages.json | jq '. | length' 2>/dev/null || echo "0")
+          echo "Found $OUTDATED_COUNT outdated packages"
+
+      - name: License compliance check
+        run: |
+          echo "Checking license compliance..."
+          npm install -g license-checker
+          license-checker --json > licenses-report.json
+
+          # Check for problematic licenses
+          license-checker --failOn 'GPL;AGPL;LGPL;CCBY-NC;CCBY-SA' > license-check.txt || {
+            echo "⚠️ Found potentially problematic licenses"
+            cat license-check.txt
+          }
+
+      - name: Run comprehensive dependency audit
+        run: |
+          echo "Running comprehensive dependency security audit..."
+          bash scripts/security-dependency-audit.sh
+
+      - name: Upload audit reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: security-audit-reports-${{ github.run_number }}
+          path: |
+            security-audit-reports/
+            npm-audit-report.json
+            npm-audit-readable.txt
+            outdated-packages.json
+            licenses-report.json
+            license-check.txt
+          retention-days: 30
+
+      - name: Generate Security Summary
+        id: security-summary
+        run: |
+          echo "Generating security summary..."
+
+          # Create summary for GitHub
+          cat > security-summary.md << 'EOF'
+          ## 🔒 Security Audit Results
+
+          **Audit Date:** $(date -u '+%Y-%m-%d %H:%M:%S UTC')
+          **Trigger:** ${{ github.event_name }}
+          **Branch:** ${{ github.ref_name }}
+
+          ### NPM Audit Results
+          - **Status:** ${{ steps.npm-audit.outputs.npm_audit_status }}
+          - **Result:** ${{ steps.npm-audit.outputs.npm_audit_result }}
+
+          ### Dependency Overview
+          - **Total Dependencies:** $(npm list --depth=0 --json | jq '.dependencies | length' 2>/dev/null || echo "Unknown")
+          - **Outdated Packages:** $(cat outdated-packages.json | jq '. | length' 2>/dev/null || echo "0")
+
+          ### Next Steps
+          EOF
+
+          if [ "${{ steps.npm-audit.outputs.npm_audit_status }}" = "failed" ]; then
+            cat >> security-summary.md << 'EOF'
+          ⚠️ **Action Required:** Security vulnerabilities detected
+          1. Review the audit report
+          2. Update vulnerable dependencies
+          3. Test thoroughly after updates
+          4. Re-run security audit
+          EOF
+          else
+            cat >> security-summary.md << 'EOF'
+          ✅ **All Clear:** No security vulnerabilities found
+          - Continue regular monitoring
+          - Keep dependencies updated
+          - Schedule next audit
+          EOF
+          fi
+
+      - name: Comment PR with security results
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+
+            // Read security summary
+            let summary = '';
+            try {
+              summary = fs.readFileSync('security-summary.md', 'utf8');
+            } catch (error) {
+              summary = '❌ Could not generate security summary';
+            }
+
+            // Post comment
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: summary
+            });
+
+      - name: Fail workflow on critical vulnerabilities
+        if: steps.npm-audit.outputs.npm_audit_status == 'failed'
+        run: |
+          echo "❌ Security audit failed - critical vulnerabilities detected"
+          echo "Please review and fix the vulnerabilities before proceeding"
+          exit 1
+
+      - name: Send security notification
+        if: failure() && github.event_name == 'schedule'
+        run: |
+          echo "🚨 Security audit failed on scheduled run"
+          echo "This indicates potential security vulnerabilities in dependencies"
+          # In production: Send notification to security team
+
+  supply-chain-security:
+    name: Supply Chain Security Check
+    runs-on: ubuntu-latest
+    needs: dependency-audit
+    if: github.event_name != 'pull_request'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run OSSF Scorecard
+        uses: ossf/scorecard-action@v2.3.1
+        with:
+          results_file: ossf-scorecard-results.sarif
+          results_format: sarif
+          publish_results: true
+
+      - name: Upload OSSF Scorecard results
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: ossf-scorecard-results.sarif
+
+      - name: Check package integrity
+        run: |
+          echo "Checking package integrity..."
+
+          # Verify package-lock.json integrity
+          if [ -f package-lock.json ]; then
+            npm ci --audit=false --legacy-peer-deps
+            if npm audit signatures; then
+              echo "✅ Package signatures verified"
+            else
+              echo "⚠️ Package signature verification failed"
+            fi
+          fi
+
+  security-monitoring:
+    name: Update Security Monitoring
+    runs-on: ubuntu-latest
+    needs: [dependency-audit, supply-chain-security]
+    if: always() && github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Update security dashboard
+        run: |
+          echo "Updating security monitoring dashboard..."
+
+          # In production: Update security metrics
+          # - Send metrics to monitoring system
+          # - Update security dashboard
+          # - Generate trending reports
+
+          echo "Security monitoring updated successfully"

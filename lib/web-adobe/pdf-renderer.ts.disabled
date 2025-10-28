@@ -1,0 +1,492 @@
+/**
+ * PDF Rendering Engine
+ * High-performance PDF rendering with canvas pooling and virtualization
+ *
+ * NOTE: Uses pdfjs-dist LEGACY BUILD for Node.js/SSR compatibility
+ */
+
+import { PdfViewerErrorCode } from '@/types/pdf-viewer'
+import type { RenderOptions, PageRenderState, PdfViewerError } from '@/types/pdf-viewer'
+
+// Use local type aliases to avoid importing from pdfjs-dist
+type PDFDocumentProxy = any
+type PDFPageProxy = any
+type PageViewport = any
+type RenderTask = any
+
+// ============================================================================
+// PDF.js Dynamic Loader (Client-Side Only)
+// ============================================================================
+
+let pdfjsLib: any = null
+let pdfjsInitialized = false
+
+/**
+ * Dynamically load pdfjs-dist LEGACY BUILD (client-side only)
+ * Uses string-based import to prevent webpack from analyzing
+ */
+async function loadPdfJs() {
+  if (typeof window === 'undefined') {
+    throw new Error('PDF.js can only be loaded in browser environment')
+  }
+
+  if (pdfjsLib) {
+    return pdfjsLib
+  }
+
+  try {
+    // Use LEGACY BUILD for better Node.js compatibility
+    const moduleName = 'pdfjs-dist/build/pdf.mjs'
+    const workerName = 'pdfjs-dist/build/pdf.worker.min.mjs'
+
+    const importFn = new Function('specifier', 'return import(specifier)')
+    pdfjsLib = await importFn(moduleName)
+
+    // Load worker
+    await importFn(workerName)
+
+    // Configure worker only once
+    if (!pdfjsInitialized) {
+      pdfjsLib.GlobalWorkerOptions.workerSrc = `/pdf.worker.min.mjs`
+      pdfjsInitialized = true
+    }
+
+    return pdfjsLib
+  } catch (error) {
+    console.error('Failed to load PDF.js:', error)
+    throw new Error('PDF.js konnte nicht geladen werden')
+  }
+}
+
+// ============================================================================
+// Canvas Pool für Performance-Optimierung
+// ============================================================================
+
+class CanvasPool {
+  private pool: HTMLCanvasElement[] = []
+  private readonly maxSize: number
+
+  constructor(maxSize = 5) {
+    this.maxSize = maxSize
+  }
+
+  /**
+   * Canvas aus Pool holen oder neu erstellen
+   */
+  acquire(): HTMLCanvasElement {
+    return this.pool.pop() || document.createElement('canvas')
+  }
+
+  /**
+   * Canvas in Pool zurückgeben
+   */
+  release(canvas: HTMLCanvasElement): void {
+    if (this.pool.length < this.maxSize) {
+      // Canvas zurücksetzen
+      const ctx = canvas.getContext('2d')
+      if (ctx) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height)
+      }
+      canvas.width = 0
+      canvas.height = 0
+      this.pool.push(canvas)
+    }
+  }
+
+  /**
+   * Pool leeren
+   */
+  clear(): void {
+    this.pool = []
+  }
+}
+
+// Globaler Canvas-Pool
+const canvasPool = new CanvasPool(10)
+
+// ============================================================================
+// PDF Renderer Class
+// ============================================================================
+
+export class PdfRenderer {
+  private document: PDFDocumentProxy | null = null
+  private renderTasks: Map<number, RenderTask> = new Map()
+  private pageCache: Map<number, PDFPageProxy> = new Map()
+  private renderStates: Map<number, PageRenderState> = new Map()
+
+  /**
+   * PDF-Dokument laden
+   */
+  async loadDocument(url: string | Uint8Array): Promise<PDFDocumentProxy> {
+    try {
+      // Dynamically load PDF.js (client-side only)
+      const pdfjs = await loadPdfJs()
+
+      const loadingTask = pdfjs.getDocument({
+        url: typeof url === 'string' ? url : undefined,
+        data: url instanceof Uint8Array ? url : undefined,
+        cMapUrl: '/cmaps/',
+        cMapPacked: true,
+        standardFontDataUrl: '/standard_fonts/',
+      })
+
+      const document = await loadingTask.promise
+      this.document = document
+      return document
+    } catch (error) {
+      throw this.createError(
+        PdfViewerErrorCode.LOAD_FAILED,
+        'PDF-Dokument konnte nicht geladen werden',
+        error
+      )
+    }
+  }
+
+  /**
+   * Seite aus Cache holen oder laden
+   */
+  async getPage(pageNumber: number): Promise<PDFPageProxy> {
+    if (!this.document) {
+      throw this.createError(PdfViewerErrorCode.LOAD_FAILED, 'Kein Dokument geladen')
+    }
+
+    // Aus Cache holen
+    let page = this.pageCache.get(pageNumber)
+    if (page) {
+      return page
+    }
+
+    // Neue Seite laden
+    try {
+      page = await this.document.getPage(pageNumber)
+      this.pageCache.set(pageNumber, page)
+      return page
+    } catch (error) {
+      throw this.createError(
+        PdfViewerErrorCode.RENDER_FAILED,
+        `Seite ${pageNumber} konnte nicht geladen werden`,
+        error
+      )
+    }
+  }
+
+  /**
+   * Seite auf Canvas rendern
+   */
+  async renderPage(options: RenderOptions): Promise<void> {
+    const { canvas, page, scale, rotation, transform, background } = options
+    const pageNumber = page.pageNumber
+
+    // Laufenden Render-Task abbrechen
+    this.cancelRender(pageNumber)
+
+    // Render-State setzen
+    this.renderStates.set(pageNumber, {
+      page: pageNumber,
+      rendering: true,
+      rendered: false,
+      error: null,
+      canvas,
+      timestamp: Date.now(),
+    })
+
+    try {
+      // Viewport berechnen
+      const viewport = page.getViewport({
+        scale,
+        rotation,
+        ...(transform && { offsetX: transform[4], offsetY: transform[5] }),
+      })
+
+      // Canvas-Größe setzen (HiDPI-Support)
+      const dpr = window.devicePixelRatio || 1
+      canvas.width = viewport.width * dpr
+      canvas.height = viewport.height * dpr
+      canvas.style.width = `${viewport.width}px`
+      canvas.style.height = `${viewport.height}px`
+
+      const ctx = canvas.getContext('2d')
+      if (!ctx) {
+        throw new Error('Canvas-Context konnte nicht erstellt werden')
+      }
+
+      // HiDPI-Skalierung
+      ctx.scale(dpr, dpr)
+
+      // Hintergrund (optional)
+      if (background) {
+        ctx.fillStyle = background
+        ctx.fillRect(0, 0, canvas.width, canvas.height)
+      }
+
+      // Render-Task starten
+      const renderTask = page.render({
+        canvasContext: ctx,
+        viewport,
+        transform: transform || undefined,
+      })
+
+      this.renderTasks.set(pageNumber, renderTask)
+
+      // Auf Fertigstellung warten
+      await renderTask.promise
+
+      // Render-State aktualisieren
+      this.renderStates.set(pageNumber, {
+        page: pageNumber,
+        rendering: false,
+        rendered: true,
+        error: null,
+        canvas,
+        timestamp: Date.now(),
+      })
+    } catch (error: any) {
+      // Abgebrochene Render-Tasks ignorieren
+      if (error?.name === 'RenderingCancelledException') {
+        return
+      }
+
+      // Fehler speichern
+      this.renderStates.set(pageNumber, {
+        page: pageNumber,
+        rendering: false,
+        rendered: false,
+        error: error.message || 'Rendering fehlgeschlagen',
+        timestamp: Date.now(),
+      })
+
+      throw this.createError(
+        PdfViewerErrorCode.RENDER_FAILED,
+        `Rendering von Seite ${pageNumber} fehlgeschlagen`,
+        error
+      )
+    } finally {
+      this.renderTasks.delete(pageNumber)
+    }
+  }
+
+  /**
+   * Render-Task abbrechen
+   */
+  cancelRender(pageNumber: number): void {
+    const task = this.renderTasks.get(pageNumber)
+    if (task) {
+      task.cancel()
+      this.renderTasks.delete(pageNumber)
+    }
+  }
+
+  /**
+   * Alle Render-Tasks abbrechen
+   */
+  cancelAllRenders(): void {
+    this.renderTasks.forEach((task) => task.cancel())
+    this.renderTasks.clear()
+  }
+
+  /**
+   * Viewport für Seite berechnen
+   */
+  async getViewport(
+    pageNumber: number,
+    scale: number,
+    rotation = 0
+  ): Promise<PageViewport> {
+    const page = await this.getPage(pageNumber)
+    return page.getViewport({ scale, rotation })
+  }
+
+  /**
+   * Text-Content extrahieren (für Accessibility)
+   */
+  async getTextContent(pageNumber: number): Promise<any> {
+    const page = await this.getPage(pageNumber)
+    return page.getTextContent()
+  }
+
+  /**
+   * Annotations extrahieren (für Formularfelder)
+   */
+  async getAnnotations(pageNumber: number): Promise<any[]> {
+    const page = await this.getPage(pageNumber)
+    return page.getAnnotations()
+  }
+
+  /**
+   * Render-State abrufen
+   */
+  getRenderState(pageNumber: number): PageRenderState | undefined {
+    return this.renderStates.get(pageNumber)
+  }
+
+  /**
+   * Cache leeren
+   */
+  clearCache(): void {
+    this.pageCache.clear()
+    this.renderStates.clear()
+    canvasPool.clear()
+  }
+
+  /**
+   * Dokument schließen und Ressourcen freigeben
+   */
+  async destroy(): Promise<void> {
+    this.cancelAllRenders()
+    this.clearCache()
+
+    if (this.document) {
+      await this.document.destroy()
+      this.document = null
+    }
+  }
+
+  /**
+   * Fehler-Helper
+   */
+  private createError(
+    code: PdfViewerErrorCode,
+    message: string,
+    details?: unknown
+  ): PdfViewerError {
+    const error = new Error(message) as PdfViewerError
+    error.code = code
+    error.details = details
+    error.name = 'PdfViewerError'
+    return error
+  }
+}
+
+// ============================================================================
+// Utility Functions
+// ============================================================================
+
+/**
+ * PDF-Koordinaten in Screen-Koordinaten umrechnen
+ */
+export function pdfToScreenCoords(
+  pdfX: number,
+  pdfY: number,
+  viewport: PageViewport
+): { x: number; y: number } {
+  const [x, y] = viewport.convertToViewportPoint(pdfX, pdfY)
+  return { x, y }
+}
+
+/**
+ * Screen-Koordinaten in PDF-Koordinaten umrechnen
+ */
+export function screenToPdfCoords(
+  screenX: number,
+  screenY: number,
+  viewport: PageViewport
+): { x: number; y: number } {
+  const [x, y] = viewport.convertToPdfPoint(screenX, screenY)
+  return { x, y }
+}
+
+/**
+ * Zoom-Level berechnen für "Fit Width"
+ */
+export function calculateFitWidthZoom(
+  pageWidth: number,
+  containerWidth: number
+): number {
+  return containerWidth / pageWidth
+}
+
+/**
+ * Zoom-Level berechnen für "Fit Page"
+ */
+export function calculateFitPageZoom(
+  pageWidth: number,
+  pageHeight: number,
+  containerWidth: number,
+  containerHeight: number
+): number {
+  const widthScale = containerWidth / pageWidth
+  const heightScale = containerHeight / pageHeight
+  return Math.min(widthScale, heightScale)
+}
+
+/**
+ * Thumbnail generieren
+ */
+export async function generateThumbnail(
+  page: PDFPageProxy,
+  maxWidth = 150,
+  maxHeight = 200
+): Promise<string> {
+  const viewport = page.getViewport({ scale: 1 })
+  const scale = Math.min(
+    maxWidth / viewport.width,
+    maxHeight / viewport.height
+  )
+
+  const canvas = canvasPool.acquire()
+  const scaledViewport = page.getViewport({ scale })
+
+  canvas.width = scaledViewport.width
+  canvas.height = scaledViewport.height
+
+  const ctx = canvas.getContext('2d')
+  if (!ctx) {
+    throw new Error('Canvas-Context nicht verfügbar')
+  }
+
+  await page.render({
+    canvasContext: ctx,
+    viewport: scaledViewport,
+  }).promise
+
+  const dataUrl = canvas.toDataURL('image/png')
+  canvasPool.release(canvas)
+
+  return dataUrl
+}
+
+/**
+ * Batch-Rendering für mehrere Seiten
+ */
+export async function renderPages(
+  renderer: PdfRenderer,
+  pageNumbers: number[],
+  canvases: HTMLCanvasElement[],
+  scale: number,
+  rotation = 0
+): Promise<void> {
+  const promises = pageNumbers.map(async (pageNum, index) => {
+    const page = await renderer.getPage(pageNum)
+    const canvas = canvases[index]
+    if (canvas) {
+      await renderer.renderPage({ canvas, page, scale, rotation })
+    }
+  })
+
+  await Promise.all(promises)
+}
+
+/**
+ * Memory-efficient Progressive Rendering
+ * Rendert Seiten in Chunks für bessere Performance
+ */
+export async function progressiveRender(
+  renderer: PdfRenderer,
+  pageNumbers: number[],
+  canvases: HTMLCanvasElement[],
+  scale: number,
+  rotation = 0,
+  chunkSize = 3
+): Promise<void> {
+  for (let i = 0; i < pageNumbers.length; i += chunkSize) {
+    const chunk = pageNumbers.slice(i, i + chunkSize)
+    const chunkCanvases = canvases.slice(i, i + chunkSize)
+    await renderPages(renderer, chunk, chunkCanvases, scale, rotation)
+  }
+}
+
+// ============================================================================
+// Export Singleton Instance
+// ============================================================================
+
+export const pdfRenderer = new PdfRenderer()

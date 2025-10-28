@@ -1,0 +1,209 @@
+/**
+ * PDF Viewer Component
+ * Haupt-Component für interaktives PDF-Viewing mit Formularfeld-Overlays
+ */
+
+'use client'
+
+import React, { useRef, useEffect } from 'react'
+import { usePdfViewer, useFieldInteraction } from '@/hooks/use-pdf-viewer'
+import { ViewerControls } from './viewer-controls'
+import { FieldOverlay } from './field-overlay'
+import { ContextMenu } from './context-menu'
+import { pdfRenderer } from '@/lib/web-adobe/pdf-renderer'
+import type { PdfViewerProps } from '@/types/pdf-viewer'
+import { cn } from '@/lib/utils'
+import { Loader2, AlertCircle } from 'lucide-react'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+
+export function PdfViewer({
+  documentUrl,
+  initialPage = 1,
+  initialZoom = 1.0,
+  showFieldOverlay = true,
+  showToolbar = true,
+  onDocumentLoad,
+  onFieldClick,
+  onFieldUpdate,
+  onFieldsChange,
+  onError,
+  className,
+  height = '100vh',
+}: PdfViewerProps) {
+  const containerRef = useRef<HTMLDivElement>(null)
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+
+  // PDF Viewer Hook
+  const viewer = usePdfViewer(documentUrl, {
+    initialPage,
+    initialZoom,
+    onDocumentLoad,
+    onError,
+  })
+
+  // Field Interaction Hook
+  const fieldInteraction = useFieldInteraction()
+
+  // Context Menu State
+  const [contextMenuState, setContextMenuState] = React.useState({
+    visible: false,
+    x: 0,
+    y: 0,
+    fieldId: null as string | null,
+  })
+
+  /**
+   * Page Rendering
+   */
+  useEffect(() => {
+    if (!viewer.document || !canvasRef.current) return
+
+    const renderPage = async () => {
+      try {
+        const page = await pdfRenderer.getPage(viewer.currentPage)
+        await pdfRenderer.renderPage({
+          canvas: canvasRef.current!,
+          page,
+          scale: viewer.zoom,
+          rotation: viewer.rotation,
+          background: '#ffffff',
+        })
+      } catch (error) {
+        console.error('[PdfViewer] Render-Fehler:', error)
+      }
+    }
+
+    renderPage()
+  }, [viewer.document, viewer.currentPage, viewer.zoom, viewer.rotation])
+
+  /**
+   * Context Menu Handlers
+   */
+  const handleContextMenu = (field: any, event: React.MouseEvent) => {
+    event.preventDefault()
+    setContextMenuState({
+      visible: true,
+      x: event.clientX,
+      y: event.clientY,
+      fieldId: field.id,
+    })
+  }
+
+  const closeContextMenu = () => {
+    setContextMenuState((prev) => ({ ...prev, visible: false }))
+  }
+
+  const handleContextAction = (action: string) => {
+    if (!contextMenuState.fieldId) return
+
+    switch (action) {
+      case 'edit':
+        // TODO: Edit-Dialog öffnen
+        console.log('Edit field:', contextMenuState.fieldId)
+        break
+      case 'delete':
+        viewer.deleteField(contextMenuState.fieldId)
+        break
+      case 'duplicate':
+        viewer.duplicateField(contextMenuState.fieldId)
+        break
+      case 'properties':
+        // TODO: Properties-Dialog öffnen
+        console.log('Properties:', contextMenuState.fieldId)
+        break
+    }
+  }
+
+  // Context Menu Actions
+  const contextMenuActions = [
+    {
+      action: 'edit' as const,
+      label: 'Bearbeiten',
+      shortcut: 'E',
+      onClick: () => handleContextAction('edit'),
+    },
+    {
+      action: 'duplicate' as const,
+      label: 'Duplizieren',
+      shortcut: 'Ctrl+D',
+      onClick: () => handleContextAction('duplicate'),
+    },
+    {
+      action: 'delete' as const,
+      label: 'Löschen',
+      shortcut: 'Del',
+      onClick: () => handleContextAction('delete'),
+    },
+    {
+      action: 'properties' as const,
+      label: 'Eigenschaften',
+      onClick: () => handleContextAction('properties'),
+    },
+  ]
+
+  // Loading State
+  if (viewer.isLoading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <p className="text-sm text-muted-foreground">
+            PDF wird geladen... {viewer.loadProgress}%
+          </p>
+        </div>
+      </div>
+    )
+  }
+
+  // Error State
+  if (viewer.error) {
+    return (
+      <div className="flex items-center justify-center h-screen p-4">
+        <Alert variant="destructive" className="max-w-md">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>{viewer.error}</AlertDescription>
+        </Alert>
+      </div>
+    )
+  }
+
+  // No Document
+  if (!viewer.document) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <p className="text-muted-foreground">Kein Dokument geladen</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className={cn('flex flex-col', className)} style={{ height }}>
+      {/* Toolbar */}
+      {showToolbar && (
+        <ViewerControls />
+      )}
+
+      {/* Viewer Container */}
+      <div
+        ref={containerRef}
+        className="flex-1 relative overflow-auto bg-gray-100"
+      >
+        <div className="relative inline-block">
+          {/* PDF Canvas */}
+          <canvas ref={canvasRef} className="block" />
+
+          {/* Field Overlay */}
+          {viewer.showOverlay && (
+            <FieldOverlay
+              pageNumber={viewer.currentPage}
+              scale={viewer.zoom}
+            />
+          )}
+        </div>
+      </div>
+
+      {/* Context Menu */}
+      <ContextMenu />
+    </div>
+  )
+}

@@ -1,0 +1,114 @@
+# ========================================
+# GLXY Gaming Platform - Security .gitignore
+# Add these lines to your main .gitignore
+# ========================================
+
+# =======================================
+# Environment Files (NEVER COMMIT!)
+# =======================================
+.env
+.env.local
+.env.development
+.env.production
+.env.*.local
+
+# Only templates allowed:
+!.env.example
+!.env.template
+
+# =======================================
+# Sensitive Documentation (NEVER COMMIT!)
+# =======================================
+/docs/internal/
+/docs/security/
+/docs/backups/
+
+# Exception: Allow structure but not content
+!docs/internal/.gitkeep
+!docs/security/.gitkeep
+
+# =======================================
+# Credentials & Keys (NEVER COMMIT!)
+# =======================================
+*.pem
+*.key
+*.p12
+*.pfx
+*.keystore
+*.jks
+secrets/
+credentials/
+
+# =======================================
+# Database & Backups (NEVER COMMIT!)
+# =======================================
+*.sql
+*.dump
+*.backup
+/backups/*.env*
+/backups/*.sql
+
+# =======================================
+# Docker & Kubernetes Secrets
+# =======================================
+docker/docker-compose.secrets.yml
+k8s/secrets.yaml
+k8s/*-secret.yaml
+
+# =======================================
+# Log Files (may contain sensitive data)
+# =======================================
+*.log
+logs/
+/app/logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# =======================================
+# IDE & OS Files
+# =======================================
+.DS_Store
+.vscode/settings.json
+.idea/
+*.swp
+*.swo
+*~
+
+# =======================================
+# Build Artifacts
+# =======================================
+.next/
+out/
+build/
+dist/
+.turbo/
+
+# =======================================
+# Node Modules
+# =======================================
+node_modules/
+.pnp
+.pnp.js
+
+# =======================================
+# Testing & Coverage
+# =======================================
+coverage/
+.nyc_output/
+*.lcov
+
+# =======================================
+# Temporary Files
+# =======================================
+tmp/
+temp/
+*.tmp
+*.bak
+*.old
+*.backup
+
+# =======================================
+# Sanitization Reports
+# =======================================
+/docs/SANITIZATION_REPORT_*.txt

@@ -1,0 +1,29 @@
+[project]
+name = "web-adobe-backend"
+version = "0.1.0"
+description = "Web-based PDF form assistant backend for glxy.at"
+authors = [{ name = "FormTool Pro" }]
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "fastapi",
+  "uvicorn[standard]",
+  "sqlmodel",
+  "pydantic-settings",
+  "python-multipart",
+  "httpx",
+  "celery",
+  "redis",
+  "jinja2",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest",
+  "pytest-asyncio",
+  "httpx",
+]
+
+[tool.pytest.ini_options]
+addopts = "-q"
+testpaths = ["tests"]

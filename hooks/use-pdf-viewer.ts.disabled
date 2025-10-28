@@ -1,0 +1,416 @@
+/**
+ * usePdfViewer Hook
+ * Zentrale Logic für PDF-Viewer mit Document Loading und Event-Handling
+ */
+
+import { useEffect, useCallback, useRef, useState } from 'react'
+import { usePdfViewerStore } from '@/lib/stores/pdf-viewer-store'
+import { pdfRenderer } from '@/lib/web-adobe/pdf-renderer'
+import { pdfFieldParser } from '@/lib/web-adobe/pdf-field-parser'
+import type { PdfDocument, FormField, KeyboardShortcut } from '@/types/pdf-viewer'
+
+// ============================================================================
+// Hook Options
+// ============================================================================
+
+interface UsePdfViewerOptions {
+  /** Initiale Seite */
+  initialPage?: number
+  /** Initialer Zoom */
+  initialZoom?: number
+  /** Auto-Load bei URL-Change */
+  autoLoad?: boolean
+  /** Keyboard Shortcuts aktivieren */
+  enableShortcuts?: boolean
+  /** Callbacks */
+  onDocumentLoad?: (doc: PdfDocument) => void
+  onError?: (error: Error) => void
+}
+
+// ============================================================================
+// usePdfViewer Hook
+// ============================================================================
+
+export function usePdfViewer(
+  documentUrl?: string | Blob,
+  options: UsePdfViewerOptions = {}
+) {
+  const {
+    initialPage = 1,
+    initialZoom = 1.0,
+    autoLoad = true,
+    enableShortcuts = true,
+    onDocumentLoad,
+    onError,
+  } = options
+
+  // Store State
+  const store = usePdfViewerStore()
+  const { setDocument, setPage, setZoom, setLoading, setError } = store
+
+  // Local State
+  const [loadProgress, setLoadProgress] = useState(0)
+  const abortControllerRef = useRef<AbortController | null>(null)
+
+  /**
+   * Dokument laden
+   */
+  const loadDocument = useCallback(
+    async (source: string | Blob) => {
+      try {
+        setLoading(true)
+        setError(null)
+        setLoadProgress(0)
+
+        // Vorheriges Laden abbrechen
+        if (abortControllerRef.current) {
+          abortControllerRef.current.abort()
+        }
+        abortControllerRef.current = new AbortController()
+
+        // URL oder Blob zu Uint8Array
+        let data: Uint8Array
+
+        if (typeof source === 'string') {
+          // URL laden
+          const response = await fetch(source, {
+            signal: abortControllerRef.current.signal,
+          })
+
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+          }
+
+          const blob = await response.blob()
+          const arrayBuffer = await blob.arrayBuffer()
+          data = new Uint8Array(arrayBuffer)
+        } else {
+          // Blob zu Uint8Array
+          const arrayBuffer = await source.arrayBuffer()
+          data = new Uint8Array(arrayBuffer)
+        }
+
+        setLoadProgress(30)
+
+        // PDF-Dokument laden
+        const pdfDoc = await pdfRenderer.loadDocument(data)
+        setLoadProgress(60)
+
+        // Formularfelder parsen
+        const parsedDoc = await pdfFieldParser.parseDocument(pdfDoc)
+        setLoadProgress(80)
+
+        // Metadaten ergänzen
+        parsedDoc.url = typeof source === 'string' ? source : URL.createObjectURL(source)
+        parsedDoc.fileName = typeof source === 'string'
+          ? source.split('/').pop() || 'document.pdf'
+          : 'document.pdf'
+        parsedDoc.fileSize = data.length
+
+        setLoadProgress(100)
+
+        // Store aktualisieren
+        setDocument(parsedDoc)
+        setPage(initialPage)
+        setZoom(initialZoom)
+
+        // Callback
+        onDocumentLoad?.(parsedDoc)
+
+        console.log(`[usePdfViewer] Dokument geladen: ${parsedDoc.fields.length} Felder`)
+      } catch (error: any) {
+        if (error.name === 'AbortError') {
+          console.log('[usePdfViewer] Laden abgebrochen')
+          return
+        }
+
+        console.error('[usePdfViewer] Fehler beim Laden:', error)
+        setError(error.message || 'Dokument konnte nicht geladen werden')
+        onError?.(error)
+      } finally {
+        setLoading(false)
+        abortControllerRef.current = null
+      }
+    },
+    [setDocument, setPage, setZoom, setLoading, setError, initialPage, initialZoom, onDocumentLoad, onError]
+  )
+
+  /**
+   * Dokument schließen
+   */
+  const closeDocument = useCallback(async () => {
+    await pdfRenderer.destroy()
+    store.clearDocument()
+  }, [store])
+
+  /**
+   * Auto-Load bei URL-Änderung
+   */
+  useEffect(() => {
+    if (autoLoad && documentUrl) {
+      loadDocument(documentUrl)
+    }
+
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort()
+      }
+    }
+  }, [documentUrl, autoLoad, loadDocument])
+
+  /**
+   * Keyboard Shortcuts
+   */
+  useEffect(() => {
+    if (!enableShortcuts) return
+
+    const shortcuts: KeyboardShortcut[] = [
+      // Navigation
+      { key: 'ArrowRight', action: store.nextPage, description: 'Nächste Seite' },
+      { key: 'ArrowLeft', action: store.previousPage, description: 'Vorherige Seite' },
+      { key: 'Home', action: () => store.goToPage(1), description: 'Erste Seite' },
+      {
+        key: 'End',
+        action: () => store.goToPage(store.document?.totalPages || 1),
+        description: 'Letzte Seite',
+      },
+
+      // Zoom
+      { key: '+', action: store.zoomIn, description: 'Vergrößern' },
+      { key: '=', action: store.zoomIn, description: 'Vergrößern (Alt)' },
+      { key: '-', action: store.zoomOut, description: 'Verkleinern' },
+      { key: '0', action: store.resetZoom, description: 'Zoom zurücksetzen' },
+
+      // Rotation
+      { key: 'r', ctrl: true, action: store.rotateClockwise, description: 'Drehen (CW)' },
+      {
+        key: 'r',
+        ctrl: true,
+        shift: true,
+        action: store.rotateCounterClockwise,
+        description: 'Drehen (CCW)',
+      },
+
+      // Overlay
+      { key: 'o', ctrl: true, action: store.toggleOverlay, description: 'Overlay Toggle' },
+
+      // Selection
+      {
+        key: 'a',
+        ctrl: true,
+        action: () => {
+          const allIds = store.document?.fields.map((f) => f.id) || []
+          store.selectFields(allIds)
+        },
+        description: 'Alle auswählen',
+      },
+      { key: 'Escape', action: store.deselectAllFields, description: 'Auswahl aufheben' },
+
+      // Delete
+      {
+        key: 'Delete',
+        action: () => {
+          const selected = store.selectedFieldIds
+          if (selected.length > 0) {
+            store.deleteFields(selected)
+          }
+        },
+        description: 'Auswahl löschen',
+      },
+
+      // Duplicate
+      {
+        key: 'd',
+        ctrl: true,
+        action: () => {
+          const selected = store.selectedFieldIds
+          if (selected.length === 1) {
+            store.duplicateField(selected[0])
+          }
+        },
+        description: 'Duplizieren',
+      },
+    ]
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Eingabefelder ignorieren
+      const target = e.target as HTMLElement
+      if (
+        target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.isContentEditable
+      ) {
+        return
+      }
+
+      for (const shortcut of shortcuts) {
+        const keyMatch = e.key === shortcut.key
+        const ctrlMatch = shortcut.ctrl ? e.ctrlKey || e.metaKey : !e.ctrlKey && !e.metaKey
+        const shiftMatch = shortcut.shift ? e.shiftKey : !e.shiftKey
+        const altMatch = shortcut.alt ? e.altKey : !e.altKey
+
+        if (keyMatch && ctrlMatch && shiftMatch && altMatch) {
+          e.preventDefault()
+          shortcut.action()
+          break
+        }
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [enableShortcuts, store])
+
+  /**
+   * Cleanup bei Unmount
+   */
+  useEffect(() => {
+    return () => {
+      closeDocument()
+    }
+  }, [closeDocument])
+
+  return {
+    // State
+    document: store.document,
+    currentPage: store.currentPage,
+    totalPages: store.document?.totalPages || 0,
+    zoom: store.zoom,
+    rotation: store.rotation,
+    viewMode: store.viewMode,
+    isLoading: store.isLoading,
+    error: store.error,
+    loadProgress,
+    fields: store.document?.fields || [],
+    selectedFieldIds: store.selectedFieldIds,
+    showOverlay: store.showFieldOverlay,
+
+    // Actions
+    loadDocument,
+    closeDocument,
+    setPage: store.setPage,
+    nextPage: store.nextPage,
+    previousPage: store.previousPage,
+    goToPage: store.goToPage,
+    setZoom: store.setZoom,
+    zoomIn: store.zoomIn,
+    zoomOut: store.zoomOut,
+    resetZoom: store.resetZoom,
+    fitWidth: store.fitWidth,
+    fitPage: store.fitPage,
+    rotateClockwise: store.rotateClockwise,
+    rotateCounterClockwise: store.rotateCounterClockwise,
+    toggleOverlay: store.toggleOverlay,
+    selectField: store.selectField,
+    deselectAllFields: store.deselectAllFields,
+    updateField: store.updateField,
+    updateFieldValue: store.updateFieldValue,
+    deleteField: store.deleteField,
+    duplicateField: store.duplicateField,
+
+    // Utilities
+    getFieldById: store.getFieldById,
+    getFieldsByPage: store.getFieldsByPage,
+    getSelectedFields: store.getSelectedFields,
+  }
+}
+
+// ============================================================================
+// usePageRenderer Hook
+// ============================================================================
+
+/**
+ * Hook für Page-Rendering auf Canvas
+ */
+export function usePageRenderer(
+  pageNumber: number,
+  canvasRef: React.RefObject<HTMLCanvasElement>,
+  scale: number,
+  rotation: number
+) {
+  const [rendering, setRendering] = useState(false)
+  const [rendered, setRendered] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const render = useCallback(async () => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+
+    try {
+      setRendering(true)
+      setError(null)
+
+      const page = await pdfRenderer.getPage(pageNumber)
+      await pdfRenderer.renderPage({
+        canvas,
+        page,
+        scale,
+        rotation,
+        background: '#ffffff',
+      })
+
+      setRendered(true)
+    } catch (err: any) {
+      console.error(`[usePageRenderer] Render-Fehler Seite ${pageNumber}:`, err)
+      setError(err.message || 'Rendering fehlgeschlagen')
+    } finally {
+      setRendering(false)
+    }
+  }, [pageNumber, canvasRef, scale, rotation])
+
+  useEffect(() => {
+    render()
+
+    return () => {
+      pdfRenderer.cancelRender(pageNumber)
+    }
+  }, [render, pageNumber])
+
+  return { rendering, rendered, error, render }
+}
+
+// ============================================================================
+// useFieldInteraction Hook
+// ============================================================================
+
+/**
+ * Hook für Field-Interaktion (Click, Drag, Context Menu)
+ */
+export function useFieldInteraction() {
+  const store = usePdfViewerStore()
+
+  const handleFieldClick = useCallback(
+    (field: FormField, event: React.MouseEvent) => {
+      if (event.ctrlKey || event.metaKey) {
+        // Multi-Select
+        store.toggleFieldSelection(field.id)
+      } else {
+        // Single-Select
+        store.selectField(field.id)
+      }
+    },
+    [store]
+  )
+
+  const handleFieldDoubleClick = useCallback(
+    (field: FormField, event: React.MouseEvent) => {
+      // TODO: Edit-Mode aktivieren
+      console.log('[useFieldInteraction] Double-Click:', field.name)
+    },
+    []
+  )
+
+  const handleFieldContextMenu = useCallback(
+    (field: FormField, event: React.MouseEvent) => {
+      event.preventDefault()
+      store.openContextMenu(event.clientX, event.clientY, field.id)
+    },
+    [store]
+  )
+
+  return {
+    handleFieldClick,
+    handleFieldDoubleClick,
+    handleFieldContextMenu,
+  }
+}

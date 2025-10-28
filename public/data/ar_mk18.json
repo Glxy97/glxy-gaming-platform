@@ -1,0 +1,40 @@
+{
+  "id": "ar_mk18",
+  "name": "MK-18",
+  "type": "rifle",
+  "ammoType": "5.56x45mm",
+  "damage": 25,
+  "fireRate": 10,
+  "magazineSize": 30,
+  "reloadTime": 2.5,
+  "recoil": {
+    "horizontal": 0.3,
+    "vertical": 0.6,
+    "recovery": 0.5
+  },
+  "spread": {
+    "min": 0.02,
+    "max": 0.12,
+    "increase": 0.01,
+    "decrease": 0.02
+  },
+  "range": 600,
+  "penetration": 0.5,
+  "firstPersonModel": {
+    "scale": [1, 1, 1],
+    "position": [0.3, -0.4, -0.8],
+    "rotation": [0, 0, 0]
+  },
+  "animations": {
+    "fire": "fire",
+    "reload": "reload",
+    "idle": "idle",
+    "draw": "draw",
+    "holster": "holster"
+  },
+  "sounds": {
+    "fire": "/sounds/weapons/mk18_fire.wav",
+    "reload": "/sounds/weapons/mk18_reload.wav",
+    "empty": "/sounds/weapons/mk18_empty.wav"
+  }
+}

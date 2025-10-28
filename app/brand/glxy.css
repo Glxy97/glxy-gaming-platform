@@ -1,0 +1,34 @@
+@layer components {
+  .theme-glxy {
+    /* Base surfaces */
+    --background: 230 20% 6%; /* deep space */
+    --foreground: 210 40% 98%;
+    --card: 230 20% 8%;
+    --card-foreground: 210 40% 98%;
+    --popover: 230 20% 8%;
+    --popover-foreground: 210 40% 98%;
+
+    /* Brand colors (galaxy violet + electric cyan) */
+    --primary: 262 83% 58%;   /* violet */
+    --primary-foreground: 210 40% 98%;
+    --secondary: 189 72% 56%; /* cyan */
+    --secondary-foreground: 210 40% 8%;
+    --accent: 316 100% 50%;   /* magenta accent */
+    --accent-foreground: 210 40% 98%;
+
+    /* System colors */
+    --muted: 230 20% 12%;
+    --muted-foreground: 210 15% 70%;
+    --destructive: 0 72% 50%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 230 20% 18%;
+    --input: 230 20% 18%;
+    --ring: 262 83% 58%;
+
+    /* Gaming palette mapping to brand */
+    --gaming-primary: var(--primary);
+    --gaming-secondary: var(--secondary);
+    --gaming-accent: var(--accent);
+  }
+}
+

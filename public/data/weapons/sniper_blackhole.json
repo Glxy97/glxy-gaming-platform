@@ -1,0 +1,40 @@
+{
+  "id": "sniper_blackhole",
+  "name": "Black Hole Sniper",
+  "type": "sniper",
+  "ammoType": "50cal",
+  "damage": 80,
+  "fireRate": 2,
+  "magazineSize": 5,
+  "reloadTime": 4.0,
+  "recoil": {
+    "horizontal": 0.8,
+    "vertical": 1.5,
+    "recovery": 0.3
+  },
+  "spread": {
+    "min": 0.001,
+    "max": 0.02,
+    "increase": 0.005,
+    "decrease": 0.01
+  },
+  "range": 1000,
+  "penetration": 0.9,
+  "firstPersonModel": {
+    "scale": [1.2, 1.2, 1.2],
+    "position": [0.35, -0.45, -1.0],
+    "rotation": [0, 0, 0]
+  },
+  "animations": {
+    "fire": "fire",
+    "reload": "reload",
+    "idle": "idle",
+    "draw": "draw",
+    "holster": "holster"
+  },
+  "sounds": {
+    "fire": "/sounds/weapons/sniper_fire.wav",
+    "reload": "/sounds/weapons/sniper_reload.wav",
+    "empty": "/sounds/weapons/sniper_empty.wav"
+  }
+}

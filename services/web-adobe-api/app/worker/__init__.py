@@ -1,0 +1,1 @@
+from .tasks import analyze_pdf, sync_datapad
