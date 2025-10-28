@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * GLXY Gaming AI Opponent System
  * Advanced AI for all games with difficulty levels, learning capabilities, and realistic behavior
@@ -181,10 +180,13 @@ export abstract class BaseAIOpponent {
     const currentIndex = difficulties.indexOf(this.state.difficulty)
 
     if (currentIndex < difficulties.length - 1) {
-      this.state.difficulty = difficulties[currentIndex + 1]
-      const newSettings = this.initializeState(this.state.difficulty, this.state.personality)
-      this.state.reactionTime = newSettings.reactionTime
-      this.state.errorRate = newSettings.errorRate
+      const nextDifficulty = difficulties[currentIndex + 1]
+      if (nextDifficulty) {
+        this.state.difficulty = nextDifficulty
+        const newSettings = this.initializeState(this.state.difficulty, this.state.personality)
+        this.state.reactionTime = newSettings.reactionTime
+        this.state.errorRate = newSettings.errorRate
+      }
     }
   }
 
@@ -193,10 +195,13 @@ export abstract class BaseAIOpponent {
     const currentIndex = difficulties.indexOf(this.state.difficulty)
 
     if (currentIndex > 0) {
-      this.state.difficulty = difficulties[currentIndex - 1]
-      const newSettings = this.initializeState(this.state.difficulty, this.state.personality)
-      this.state.reactionTime = newSettings.reactionTime
-      this.state.errorRate = newSettings.errorRate
+      const prevDifficulty = difficulties[currentIndex - 1]
+      if (prevDifficulty) {
+        this.state.difficulty = prevDifficulty
+        const newSettings = this.initializeState(this.state.difficulty, this.state.personality)
+        this.state.reactionTime = newSettings.reactionTime
+        this.state.errorRate = newSettings.errorRate
+      }
     }
   }
 

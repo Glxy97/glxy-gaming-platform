@@ -1,4 +1,3 @@
-// @ts-nocheck
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
@@ -124,7 +123,10 @@ export function Connect4Engine({
       [1, -1]   // Diagonal \
     ]
 
-    for (const [dRow, dCol] of directions) {
+    for (const direction of directions) {
+      const [dRow, dCol] = direction
+      if (dRow === undefined || dCol === undefined) continue
+      
       let count = 1 // Count the current piece
 
       // Check in positive direction

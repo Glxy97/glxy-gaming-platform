@@ -13,7 +13,7 @@
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
-import { validateAndSanitizeInput } from '@/lib/auth-security'
+import { sanitizeSqlInput } from '@/lib/auth-security'
 import { AuditLogger } from '@/lib/audit-logger'
 
 export async function GET(request: NextRequest) {
@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
 
     // Search filter with sanitization
     if (search) {
-      const sanitizedSearch = validateAndSanitizeInput.search(search)
+      const sanitizedSearch = sanitizeSqlInput(search)
       if (sanitizedSearch) {
         where.OR = [
           { title: { contains: sanitizedSearch, mode: 'insensitive' as const } },
@@ -97,8 +97,8 @@ export async function POST(request: NextRequest) {
     const { title, filename, storagePath, status, pageCount, fileSize } = body
 
     // Validate and sanitize input
-    const sanitizedTitle = validateAndSanitizeInput.search(title || '')
-    const sanitizedFilename = validateAndSanitizeInput.filename(filename || '')
+    const sanitizedTitle = sanitizeSqlInput(title || '')
+    const sanitizedFilename = sanitizeSqlInput(filename || '')
     
     if (!sanitizedTitle || !sanitizedFilename) {
       return NextResponse.json(

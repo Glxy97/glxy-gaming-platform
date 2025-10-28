@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { APIMonitoring } from '@/lib/api-monitoring'
-import { verifyAuth } from '@/lib/auth-security'
+import { verifyAuth, type AuthenticatedUser } from '@/lib/auth-security'
 
 export async function GET(request: NextRequest) {
   try {
-    const user = await verifyAuth(request)
+    const result = await verifyAuth(request)
+    const user: AuthenticatedUser | null = result.user
     if (!user || user.role !== 'admin') {
       return NextResponse.json({ error: 'Admin access required' }, { status: 403 })
     }

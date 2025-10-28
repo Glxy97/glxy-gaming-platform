@@ -1,4 +1,3 @@
-// @ts-nocheck
 'use client'
 
 /**
@@ -115,7 +114,10 @@ export function Connect4_2025({
       [1, -1]   // Diagonal /
     ]
 
-    for (const [dRow, dCol] of directions) {
+    for (const direction of directions) {
+      const [dRow, dCol] = direction
+      if (dRow === undefined || dCol === undefined) continue
+      
       const cells: [number, number][] = [[row, col]]
 
       // Check positive direction

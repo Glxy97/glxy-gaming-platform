@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
-import { verifyAuth } from '@/lib/auth-security'
+import { verifyAuth, sanitizeSqlInput } from '@/lib/auth-security'
 import { auth } from '@/lib/auth'
-import { validateAndSanitizeInput } from '@/lib/auth-security'
 import { AuditLogger } from '@/lib/audit-logger'
 
 // Verify admin privileges
@@ -49,7 +48,7 @@ export async function GET(request: NextRequest) {
 
     // Search filter with input sanitization
     if (search) {
-      const sanitizedSearch = validateAndSanitizeInput.search(search)
+      const sanitizedSearch = sanitizeSqlInput(search)
       if (sanitizedSearch) {
         whereCondition.OR = [
           { email: { contains: sanitizedSearch, mode: 'insensitive' } },
