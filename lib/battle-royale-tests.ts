@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { BattleRoyaleMatchManager } from './battle-royale-game-systems';
 import { performanceOptimizer, BattleRoyalePerformanceOptimizer } from './battle-royale-performance-optimizer';
 

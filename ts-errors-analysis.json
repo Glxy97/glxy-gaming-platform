@@ -1,0 +1,45 @@
+{
+  "totalErrors": 303,
+  "topErrors": [
+    [
+      "Object is possibly 'undefined'.",
+      173
+    ],
+    [
+      "Type 'string | undefined' is not assignable to type 'string'.",
+      14
+    ],
+    [
+      "'hit' is possibly 'undefined'.",
+      12
+    ],
+    [
+      "'bot1' is possibly 'undefined'.",
+      8
+    ],
+    [
+      "'bot2' is possibly 'undefined'.",
+      8
+    ],
+    [
+      "Argument of type 'EnhancedRoomTemplate | undefined' is not assignable to parameter of type 'EnhancedRoomTemplate'.",
+      8
+    ],
+    [
+      "Argument of type 'number | undefined' is not assignable to parameter of type 'number'.",
+      7
+    ],
+    [
+      "'room' is possibly 'undefined'.",
+      5
+    ],
+    [
+      "This member must have an 'override' modifier because it overrides a member in the base class 'BaseAIOpponent'.",
+      4
+    ],
+    [
+      "Argument of type 'string | undefined' is not assignable to parameter of type 'string'.",
+      4
+    ]
+  ]
+}

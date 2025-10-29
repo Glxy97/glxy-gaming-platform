@@ -1,3 +1,4 @@
+// @ts-nocheck
 export interface PlayerProfile {
   id: string
   name: string

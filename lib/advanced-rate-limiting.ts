@@ -117,7 +117,7 @@ export const KEY_GENERATORS = {
   // IP-based limiting
   byIP: (request: NextRequest): string => {
     const forwarded = request.headers.get('x-forwarded-for')
-    const ip = forwarded ? forwarded.split(',')[0].trim() :
+    const ip = forwarded ? (forwarded.split(',')[0] || '').trim() :
                 request.headers.get('x-real-ip') ||
                 'unknown'
     return `rate_limit:ip:${ip}`

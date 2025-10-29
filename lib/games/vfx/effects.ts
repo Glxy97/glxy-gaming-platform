@@ -198,9 +198,9 @@ export class EffectsManager {
       // Update particle positions
       const positions = geometry.attributes.position.array as Float32Array
       for (let i = 0; i < particles.length; i++) {
-        positions[i * 3] += velocities[i].x * 0.016
-        positions[i * 3 + 1] += velocities[i].y * 0.016
-        positions[i * 3 + 2] += velocities[i].z * 0.016
+        if (positions[i * 3] !== undefined) positions[i * 3] += velocities[i]!.x * 0.016
+        if (positions[i * 3 + 1] !== undefined) positions[i * 3 + 1] += velocities[i]!.y * 0.016
+        if (positions[i * 3 + 2] !== undefined) positions[i * 3 + 2] += velocities[i]!.z * 0.016
       }
       geometry.attributes.position.needsUpdate = true
 

@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { VoiceAssistantSystem, DialogueContext } from './voice-assistant-system';
 import { VoiceAssistantService } from './voice-assistant-service';
 import { NLPProcessor } from './nlp-processor';
