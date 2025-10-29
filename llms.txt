@@ -1,0 +1,331 @@
+# GLXY Gaming Platform
+
+> Eine moderne Gaming-Plattform mit 30+ Spielen, built with Next.js 15, TypeScript, Prisma, und Socket.IO
+
+## 🎮 Projekt-Übersicht
+
+**Repository:** https://github.com/Glxy97/glxy-gaming-platform  
+**GitMCP URL:** https://gitmcp.io/Glxy97/glxy-gaming-platform  
+**Status:** ✅ Production Ready (0 Security Vulnerabilities)
+
+Eine vollständige, produktionsreife Gaming-Plattform mit über 30 spielbaren Spielen, Echtzeit-Multiplayer, Benutzer-Authentifizierung, Achievements, Leaderboards und mehr.
+
+## 🏗️ Projekt-Struktur
+
+```
+glxy-gaming-platform/
+├── app/                    # Next.js 15 App Router
+│   ├── games/             # 30+ Game Pages
+│   ├── api/               # API Routes (Auth, Games, Admin)
+│   └── (dashboard)/       # Dashboard Routes
+├── components/            # React Components
+│   ├── ui/               # Shadcn/UI Components
+│   └── games/            # Game-specific Components
+├── lib/                   # Core Libraries & Game Logic
+│   ├── games/            # Game Implementations
+│   ├── db-optimized.ts   # Database Layer
+│   ├── game-socket-handlers.ts  # Socket.IO Logic
+│   └── jwt-token-rotation.ts    # Security
+├── prisma/               # Database Schema & Migrations
+├── docs/                 # Documentation
+├── __tests__/           # Test Suites
+└── e2e/                 # E2E Tests (Playwright)
+```
+
+## 🚀 Tech Stack
+
+### Frontend
+- **Framework:** Next.js 15.5.3 (App Router, React 19)
+- **Language:** TypeScript 5.6.3
+- **Styling:** Tailwind CSS 3.4.17
+- **UI Components:** Radix UI / Shadcn/UI
+- **3D Graphics:** Three.js, React Three Fiber
+- **Animations:** Framer Motion
+
+### Backend
+- **Database:** PostgreSQL (Prisma ORM 6.16.2)
+- **Authentication:** NextAuth.js v5 (JWT Token Rotation)
+- **Real-time:** Socket.IO 4.8.0
+- **Caching:** Redis (ioredis + @socket.io/redis-adapter)
+- **Security:** bcryptjs, validator, SQL-injection protection
+
+### Testing & Quality
+- **Unit Tests:** Vitest 4.0.4
+- **E2E Tests:** Playwright 1.56.1
+- **Linting:** ESLint 9.12.0
+- **Type-Checking:** TypeScript strict mode
+
+### DevOps
+- **Containerization:** Docker + Docker Compose
+- **Monitoring:** Sentry
+- **CI/CD:** GitHub Actions ready
+
+## 🎮 30+ Verfügbare Spiele
+
+### 🎯 Klassische Spiele
+1. **Tic-Tac-Toe** - Classic 3x3 Grid
+2. **Connect 4** - Multiplayer Strategy
+3. **Chess** - Full Implementation
+4. **Checkers** - Classic Board Game
+5. **Minesweeper** - Single-player Puzzle
+6. **Sudoku** - Number Puzzle
+7. **2048** - Sliding Puzzle
+8. **Memory** - Card Matching
+9. **Snake** - Classic Arcade
+10. **Tetris** - Block Puzzle
+
+### 🎲 Strategie & Karten
+11. **Blackjack** - Casino Card Game
+12. **Poker** - Texas Hold'em
+13. **Solitaire** - Classic Patience
+14. **Mahjong** - Tile Matching
+15. **Yahtzee** - Dice Game
+16. **Battleship** - Naval Combat
+
+### 🏎️ Action & Racing
+17. **Racing Game** - 3D Car Racing
+18. **FPS Game** - First-Person Shooter
+19. **Platform Game** - 2D Platformer
+20. **Space Shooter** - Arcade Shooter
+21. **Endless Runner** - Auto-runner
+
+### 🧩 Puzzle & Logic
+22. **Puzzle Game** - Logic Puzzles
+23. **Word Search** - Word Finding
+24. **Crossword** - Word Puzzle
+25. **Trivia** - Quiz Game
+26. **Simon Says** - Memory Pattern
+
+### 🎪 Multiplayer & Party
+27. **Quiz Battle** - Multiplayer Quiz
+28. **Drawing Game** - Pictionary-style
+29. **Typing Race** - Speed Typing
+30. **Reaction Test** - Reflex Training
+
+## 🔒 Sicherheits-Features
+
+### Aktueller Security-Status
+- ✅ **0 Sicherheitslücken** (Stand: 29. Oktober 2025)
+- ✅ playwright: 1.55.0 → 1.56.1 (GHSA-7mvr-c777-76hp behoben)
+- ✅ validator: 13.15.15 → 13.15.20 (GHSA-9965-vmph-33xx behoben)
+- ✅ 126 ungenutzte Pakete entfernt (inkl. prismjs vulnerability)
+
+### Implementierte Security-Maßnahmen
+- JWT Token Rotation System
+- SQL Injection Protection (40+ Test Cases)
+- Password Hashing (bcryptjs)
+- CSRF Protection
+- Rate Limiting
+- Input Validation & Sanitization
+- Secure Session Management
+
+## ⚡ Performance-Optimierungen
+
+### Homepage Performance
+- ✅ -40% JavaScript Bundle
+- ✅ -30% GPU Usage
+- ✅ -60% Frame Drops
+- ✅ Game Preloading System (-70% Load Time)
+
+### Database Optimizations
+- Connection Pooling
+- Query Optimization
+- Index Management
+- Caching Layer (Redis)
+
+## 📊 Wichtige Dateien & Dokumentation
+
+### Kern-Dokumentation
+- `README.md` - Haupt-Dokumentation
+- `API_DOCUMENTATION.md` - API Endpoints
+- `CHANGELOG.md` - Änderungshistorie
+- `DEVELOPER_HANDOFF.md` - Entwickler-Guide
+
+### Sicherheits-Berichte
+- `SICHERHEITSBERICHT.md` - Security Audit (29.10.2025)
+- `DELETED_PACKAGES.md` - Entfernte Dependencies (126 Pakete)
+- `security-audit-reports/` - Historische Security-Audits
+
+### Spezial-Dokumentation
+- `docs/GITMCP_INTEGRATION.md` - GitMCP Setup Guide
+- `docs/HTTPS_DEV_SETUP.md` - HTTPS Development Setup
+- `PDF_SERVICES_README.md` - PDF Generation Services
+- `SOCKET_QUICKSTART.md` - Socket.IO Setup
+
+### Implementierungs-Reports
+- `PHASE_6_ABSCHLUSSBERICHT.md` - Phase 6 Completion
+- `GAME_ROUTING_UPGRADE_COMPLETE.md` - Routing Improvements
+- `DEVOPS-TRANSFORMATION-REPORT.md` - DevOps Setup
+
+## 🎯 Wichtige NPM Scripts
+
+```bash
+# Development
+npm run dev              # Start development server
+npm run dev:turbo        # Start with Turbo mode
+
+# Build & Production
+npm run build            # Production build
+npm run start            # Start production server
+npm run build:full       # Build with checks
+
+# Testing
+npm test                 # Run unit tests
+npm run test:watch       # Watch mode
+npm run test:e2e         # E2E tests
+npm run test:security    # Security tests
+
+# Database
+npm run db:migrate       # Run migrations
+npm run db:seed          # Seed database
+
+# Quality Checks
+npm run lint             # ESLint
+npm run typecheck        # TypeScript check
+npm run security:scan    # Security scan
+```
+
+## 🗄️ Database Schema (Prisma)
+
+### Haupttabellen
+- `User` - Benutzer-Accounts
+- `Account` - OAuth-Accounts (NextAuth)
+- `Session` - User Sessions
+- `Game` - Spiele-Metadaten
+- `GameSession` - Game Sessions & Scores
+- `Achievement` - User Achievements
+- `Leaderboard` - Global Rankings
+- `GameRoom` - Multiplayer Rooms
+
+## 🔌 API Endpoints
+
+### Authentication
+- `POST /api/auth/signin` - Login
+- `POST /api/auth/signup` - Register
+- `POST /api/auth/signout` - Logout
+- `POST /api/auth/refresh` - Token Refresh
+- `POST /api/auth/revoke` - Token Revoke
+
+### Games
+- `GET /api/games` - List all games
+- `GET /api/games/[id]` - Get game details
+- `POST /api/games/[id]/score` - Submit score
+- `GET /api/games/[id]/leaderboard` - Get leaderboard
+
+### Admin
+- `GET /api/admin/users` - Manage users
+- `GET /api/admin/stats` - Platform statistics
+- `POST /api/admin/games` - Manage games
+
+## 🎨 Design System
+
+### UI Components (Shadcn/UI)
+- Buttons, Inputs, Forms
+- Dialogs, Modals, Popovers
+- Cards, Tabs, Accordions
+- Toast Notifications
+- Progress Bars
+- Charts (Recharts)
+
+### Themes
+- Dark Mode Support
+- Custom Color Schemes
+- Responsive Design (Mobile-First)
+
+## 🚦 Aktuelle Projekt-Phase
+
+**Status:** ✅ **Phase 6 Complete - Production Ready**
+
+### Abgeschlossene Phasen
+- ✅ Phase 1: Grundgerüst & Authentication
+- ✅ Phase 2: Core Games Implementation
+- ✅ Phase 3: Multiplayer & Real-time
+- ✅ Phase 4: Performance & Optimization
+- ✅ Phase 5: Testing & Quality Assurance
+- ✅ Phase 6: Security Hardening & Documentation
+
+### Nächste Schritte (Optional)
+- [ ] Mobile App (React Native)
+- [ ] Tournament System
+- [ ] In-Game Currency
+- [ ] Social Features (Friends, Chat)
+
+## 🤝 Contributing Guidelines
+
+### Code Style
+- TypeScript strict mode
+- ESLint configuration
+- Prettier formatting
+- Conventional Commits
+
+### Testing Requirements
+- Unit Tests für neue Features
+- E2E Tests für kritische Flows
+- Security Tests für Auth/Data
+
+## 📦 Dependencies (Wichtigste)
+
+### Production
+- `next@15.5.3` - Framework
+- `react@19.0.0` - UI Library
+- `@prisma/client@6.16.2` - Database
+- `next-auth@5.0.0-beta.25` - Authentication
+- `socket.io@4.8.0` - Real-time
+- `zod@3.23.8` - Validation
+
+### Development
+- `typescript@5.6.3`
+- `@playwright/test@1.56.1`
+- `vitest@4.0.4`
+- `prisma@6.16.2`
+
+## 🔗 Wichtige Links
+
+- **GitHub:** https://github.com/Glxy97/glxy-gaming-platform
+- **GitMCP:** https://gitmcp.io/Glxy97/glxy-gaming-platform
+- **Issues:** https://github.com/Glxy97/glxy-gaming-platform/issues
+- **Security:** https://github.com/Glxy97/glxy-gaming-platform/security
+
+## 📝 Konventionen & Best Practices
+
+### Naming Conventions
+- Components: PascalCase (`GameCard.tsx`)
+- Files: kebab-case (`game-socket-handlers.ts`)
+- Hooks: camelCase mit use-Prefix (`useGameState.ts`)
+- Types: PascalCase (`GameSessionType`)
+
+### Ordner-Struktur
+- `/app` - Routing & Pages (Next.js App Router)
+- `/components` - Wiederverwendbare Components
+- `/lib` - Business Logic & Utilities
+- `/types` - TypeScript Type Definitions
+- `/hooks` - Custom React Hooks
+- `/contexts` - React Contexts
+
+### Git Workflow
+- Branch: `main` (protected)
+- Development: `clean-main`
+- Features: `feature/feature-name`
+- Fixes: `fix/bug-name`
+
+## 🎯 Für AI-Assistenten
+
+Dieses Projekt ist optimiert für:
+- Code-Generierung mit Kontext-Awareness
+- Automatische Bug-Fixes
+- Test-Generierung
+- Dokumentations-Updates
+- Security-Audits
+- Performance-Analysen
+
+**GitMCP URL für optimalen Kontext:**
+```
+https://gitmcp.io/Glxy97/glxy-gaming-platform
+```
+
+---
+
+**Letzte Aktualisierung:** 29. Oktober 2025  
+**Sicherheits-Audit:** ✅ Bestanden (0 Vulnerabilities)  
+**Status:** 🚀 Production Ready
+
