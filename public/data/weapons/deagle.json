@@ -1,0 +1,77 @@
+{
+  "id": "deagle",
+  "name": "Desert Eagle",
+  "type": "pistol",
+  "description": "Powerful semi-automatic handgun with high damage and accuracy",
+  
+  "modelPath": "/models/weapons/pistol.glb",
+  "viewmodelPosition": {
+    "x": 0.2,
+    "y": -0.3,
+    "z": -0.2
+  },
+  "adsPosition": {
+    "x": 0,
+    "y": -0.15,
+    "z": -0.35
+  },
+  "viewmodelRotation": {
+    "x": 0,
+    "y": -1.5708,
+    "z": 0
+  },
+  "viewmodelScale": 0.7,
+  
+  "magazineSize": 7,
+  "maxTotalAmmo": 35,
+  "reloadTime": 2.2,
+  "tacticalReloadTime": 1.8,
+  "usesAmmo": true,
+  
+  "fireRate": 267,
+  "fireMode": ["SEMI_AUTO"],
+  "damage": 55,
+  "headshotMultiplier": 2.5,
+  "range": 50,
+  "accuracy": 80,
+  "penetration": 60,
+  
+  "recoilPattern": {
+    "vertical": [2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0],
+    "horizontal": [-0.2, 0.3, -0.4, 0.5, -0.3, 0.4, -0.2]
+  },
+  "recoilRecoverySpeed": 4.0,
+  "firstShotMultiplier": 0.8,
+  "adsRecoilMultiplier": 0.7,
+  
+  "baseSpread": 0.03,
+  "movementSpreadMultiplier": 1.8,
+  "adsSpreadMultiplier": 0.5,
+  "crouchSpreadMultiplier": 0.8,
+  "jumpSpreadMultiplier": 4.0,
+  
+  "adsFOV": 55,
+  "adsSpeed": 10,
+  "adsMovementPenalty": 0.7,
+  "adsEnabled": true,
+  
+  "muzzleFlashIntensity": 7,
+  "muzzleFlashColor": "#ffaa00",
+  "shellEjectionEnabled": true,
+  "tracerEnabled": false,
+  "tracerSpeed": 600,
+  
+  "soundPaths": {
+    "fire": "/sounds/weapons/deagle_fire.mp3",
+    "reload_mag_out": "/sounds/weapons/pistol_mag_out.mp3",
+    "reload_mag_in": "/sounds/weapons/pistol_mag_in.mp3",
+    "reload_rack": "/sounds/weapons/pistol_rack.mp3",
+    "dry_fire": "/sounds/weapons/dry_fire.mp3",
+    "switch": "/sounds/weapons/pistol_switch.mp3"
+  },
+  
+  "weight": 1.9,
+  "switchSpeed": 0.3,
+  "inspectTime": 2.0
+}
+

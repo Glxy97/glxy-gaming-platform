@@ -1,0 +1,77 @@
+{
+  "id": "m4a1",
+  "name": "M4A1 Tactical",
+  "type": "rifle",
+  "description": "Versatile assault rifle with balanced stats and controllable recoil",
+  
+  "modelPath": "/models/weapons/ak47.glb",
+  "viewmodelPosition": {
+    "x": 0.3,
+    "y": -0.25,
+    "z": -0.18
+  },
+  "adsPosition": {
+    "x": 0,
+    "y": -0.12,
+    "z": -0.4
+  },
+  "viewmodelRotation": {
+    "x": -0.03,
+    "y": -1.5708,
+    "z": 0
+  },
+  "viewmodelScale": 0.65,
+  
+  "magazineSize": 30,
+  "maxTotalAmmo": 120,
+  "reloadTime": 2.5,
+  "tacticalReloadTime": 2.0,
+  "usesAmmo": true,
+  
+  "fireRate": 667,
+  "fireMode": ["SEMI_AUTO", "FULL_AUTO"],
+  "damage": 30,
+  "headshotMultiplier": 2.0,
+  "range": 100,
+  "accuracy": 85,
+  "penetration": 50,
+  
+  "recoilPattern": {
+    "vertical": [0.5, 1.0, 1.2, 1.5, 1.8, 2.0, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 2.8, 2.9, 3.0, 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7, 3.8, 3.9, 4.0, 4.1, 4.2, 4.3, 4.4, 4.5],
+    "horizontal": [-0.1, 0.2, -0.3, 0.4, -0.5, 0.3, -0.4, 0.2, -0.3, 0.1, 0.3, -0.2, 0.4, -0.3, 0.2, -0.4, 0.3, -0.2, 0.1, -0.3, 0.4, -0.2, 0.3, -0.4, 0.2, -0.1, 0.3, -0.2, 0.4, -0.3]
+  },
+  "recoilRecoverySpeed": 5.0,
+  "firstShotMultiplier": 0.7,
+  "adsRecoilMultiplier": 0.6,
+  
+  "baseSpread": 0.02,
+  "movementSpreadMultiplier": 2.0,
+  "adsSpreadMultiplier": 0.4,
+  "crouchSpreadMultiplier": 0.7,
+  "jumpSpreadMultiplier": 3.5,
+  
+  "adsFOV": 50,
+  "adsSpeed": 8,
+  "adsMovementPenalty": 0.6,
+  "adsEnabled": true,
+  
+  "muzzleFlashIntensity": 6,
+  "muzzleFlashColor": "#ffa500",
+  "shellEjectionEnabled": true,
+  "tracerEnabled": true,
+  "tracerSpeed": 800,
+  
+  "soundPaths": {
+    "fire": "/sounds/weapons/m4a1_fire.mp3",
+    "reload_mag_out": "/sounds/weapons/rifle_mag_out.mp3",
+    "reload_mag_in": "/sounds/weapons/rifle_mag_in.mp3",
+    "reload_rack": "/sounds/weapons/rifle_rack.mp3",
+    "dry_fire": "/sounds/weapons/dry_fire.mp3",
+    "switch": "/sounds/weapons/rifle_switch.mp3"
+  },
+  
+  "weight": 3.4,
+  "switchSpeed": 0.6,
+  "inspectTime": 2.5
+}
+

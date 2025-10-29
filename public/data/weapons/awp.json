@@ -1,0 +1,77 @@
+{
+  "id": "awp",
+  "name": "AWP Sniper",
+  "type": "sniper",
+  "description": "High-powered bolt-action sniper rifle with devastating damage",
+  
+  "modelPath": "/models/weapons/awp.glb",
+  "viewmodelPosition": {
+    "x": 0.35,
+    "y": -0.25,
+    "z": -0.2
+  },
+  "adsPosition": {
+    "x": 0,
+    "y": -0.1,
+    "z": -0.45
+  },
+  "viewmodelRotation": {
+    "x": -0.05,
+    "y": -1.5708,
+    "z": 0
+  },
+  "viewmodelScale": 0.6,
+  
+  "magazineSize": 5,
+  "maxTotalAmmo": 20,
+  "reloadTime": 3.5,
+  "tacticalReloadTime": 2.8,
+  "usesAmmo": true,
+  
+  "fireRate": 40,
+  "fireMode": ["SEMI_AUTO"],
+  "damage": 120,
+  "headshotMultiplier": 1.5,
+  "range": 300,
+  "accuracy": 98,
+  "penetration": 95,
+  
+  "recoilPattern": {
+    "vertical": [4.0, 4.5, 5.0, 5.5, 6.0],
+    "horizontal": [0.0, 0.2, -0.1, 0.3, -0.2]
+  },
+  "recoilRecoverySpeed": 3.0,
+  "firstShotMultiplier": 1.0,
+  "adsRecoilMultiplier": 0.5,
+  
+  "baseSpread": 0.001,
+  "movementSpreadMultiplier": 5.0,
+  "adsSpreadMultiplier": 0.1,
+  "crouchSpreadMultiplier": 0.5,
+  "jumpSpreadMultiplier": 10.0,
+  
+  "adsFOV": 35,
+  "adsSpeed": 6,
+  "adsMovementPenalty": 0.3,
+  "adsEnabled": true,
+  
+  "muzzleFlashIntensity": 8,
+  "muzzleFlashColor": "#ff8800",
+  "shellEjectionEnabled": true,
+  "tracerEnabled": true,
+  "tracerSpeed": 1200,
+  
+  "soundPaths": {
+    "fire": "/sounds/weapons/awp_fire.mp3",
+    "reload_mag_out": "/sounds/weapons/sniper_mag_out.mp3",
+    "reload_mag_in": "/sounds/weapons/sniper_mag_in.mp3",
+    "reload_rack": "/sounds/weapons/sniper_rack.mp3",
+    "dry_fire": "/sounds/weapons/dry_fire.mp3",
+    "switch": "/sounds/weapons/sniper_switch.mp3"
+  },
+  
+  "weight": 6.5,
+  "switchSpeed": 0.9,
+  "inspectTime": 3.0
+}
+
