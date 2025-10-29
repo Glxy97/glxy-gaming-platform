@@ -447,27 +447,27 @@ export class UltimateFPSEngineV2 {
 
       this.weaponModel = modelScene
 
-      // 🔥 FIX V2: Weapon-specific positioning (Deagle ist Referenz!)
-      // Jede Waffe individuell anpassen
+      // 🔥 FIX V16: FPS-STANDARD Weapon Positioning (wie Call of Duty / CS:GO!)
+      // Waffen müssen 25-30% des Bildschirms füllen!
       
       if (currentWeapon.id === 'glxy_awp') {
-        // AWP: Sniper Rifle (lang, muss VIEL näher sein)
-        this.weaponModel.scale.set(0.2, 0.2, 0.2) // Kleiner
-        this.weaponModel.position.set(0.3, -0.15, -0.3) // Rechts, höher, näher
-        this.weaponModel.rotation.set(-0.1, -Math.PI / 2, 0) // Leicht nach oben
-        console.log('🎯 AWP positioned (closer, smaller)')
+        // AWP: Sniper Rifle - GROSS und NAH!
+        this.weaponModel.scale.set(0.6, 0.6, 0.6) // 3x größer!
+        this.weaponModel.position.set(0.35, -0.25, -0.2) // Viel näher zur Kamera!
+        this.weaponModel.rotation.set(-0.05, -Math.PI / 2, 0)
+        console.log('🎯 AWP: FPS-Standard (0.6 scale, z=-0.2)')
       } else if (currentWeapon.id === 'glxy_desert_eagle') {
-        // Deagle: PERFEKT! (Referenz)
-        this.weaponModel.scale.set(0.3, 0.3, 0.3)
-        this.weaponModel.position.set(0.15, -0.22, -0.4) // ✅ PERFEKT!
+        // Deagle: Pistole - groß aber kompakt
+        this.weaponModel.scale.set(0.7, 0.7, 0.7) // Größer!
+        this.weaponModel.position.set(0.2, -0.3, -0.2) // Näher!
         this.weaponModel.rotation.set(0, -Math.PI / 2, 0)
-        console.log('✅ Deagle positioned perfectly')
+        console.log('🔫 Deagle: FPS-Standard (0.7 scale, z=-0.2)')
       } else {
-        // M4A1 / AK47: Assault Rifles (näher und höher als vorher)
-        this.weaponModel.scale.set(0.25, 0.25, 0.25) // Kleiner
-        this.weaponModel.position.set(0.25, -0.18, -0.35) // Rechts, höher, näher
-        this.weaponModel.rotation.set(-0.05, -Math.PI / 2, 0) // Leicht nach oben
-        console.log('🔫 M4A1/AK47 positioned (closer, higher)')
+        // M4A1 / AK47: Assault Rifles - DOMINANT im Bild!
+        this.weaponModel.scale.set(0.65, 0.65, 0.65) // Viel größer!
+        this.weaponModel.position.set(0.3, -0.25, -0.18) // Viel näher!
+        this.weaponModel.rotation.set(-0.03, -Math.PI / 2, 0)
+        console.log('🔫 M4A1: FPS-Standard (0.65 scale, z=-0.18)')
       }
 
       // FIX MATERIALS: Apply realistic weapon colors
@@ -563,9 +563,10 @@ export class UltimateFPSEngineV2 {
     sight.position.set(0, 0.08, -0.1)
     this.weaponModel.add(sight)
     
-    // Position: Standard (M4A1-Position)
-    this.weaponModel.position.set(0.25, -0.18, -0.35)
-    this.weaponModel.rotation.set(-0.05, -Math.PI / 2, 0)
+    // 🔥 V16: Position: FPS-Standard (M4A1-Position)
+    this.weaponModel.scale.set(0.65, 0.65, 0.65) // FPS-Standard!
+    this.weaponModel.position.set(0.3, -0.25, -0.18) // Groß und nah!
+    this.weaponModel.rotation.set(-0.03, -Math.PI / 2, 0)
     
     // Add to camera
     this.camera.add(this.weaponModel)
@@ -576,31 +577,36 @@ export class UltimateFPSEngineV2 {
   private createPlayerHands(): void {
     this.playerHands = new THREE.Group()
 
+    // 🔥 V16: VISIBLE hands for FPS-Standard weapons!
     // Left Hand (holding weapon from left)
-    const leftHandGeometry = new THREE.BoxGeometry(0.05, 0.08, 0.05)
-    const handMaterial = new THREE.MeshStandardMaterial({ color: 0xffdbac, roughness: 0.7 })
+    const leftHandGeometry = new THREE.BoxGeometry(0.08, 0.12, 0.08) // Größer!
+    const handMaterial = new THREE.MeshStandardMaterial({ 
+      color: 0xffdbac, 
+      roughness: 0.7,
+      metalness: 0.1
+    })
     const leftHand = new THREE.Mesh(leftHandGeometry, handMaterial)
-    leftHand.position.set(-0.05, -0.18, -0.25) // Left side of weapon
+    leftHand.position.set(-0.1, -0.3, -0.15) // Näher zur Kamera!
     leftHand.castShadow = true
     this.playerHands.add(leftHand)
 
     // Right Hand (holding weapon from right)
     const rightHand = new THREE.Mesh(leftHandGeometry.clone(), handMaterial)
-    rightHand.position.set(0.15, -0.18, -0.25) // Right side of weapon
+    rightHand.position.set(0.2, -0.3, -0.15) // Näher zur Kamera!
     rightHand.castShadow = true
     this.playerHands.add(rightHand)
 
-    // Forearm (left)
-    const forearmGeometry = new THREE.BoxGeometry(0.04, 0.15, 0.04)
+    // Forearm (left) - Größer und sichtbarer!
+    const forearmGeometry = new THREE.BoxGeometry(0.06, 0.2, 0.06) // Größer!
     const leftForearm = new THREE.Mesh(forearmGeometry, handMaterial)
-    leftForearm.position.set(-0.05, -0.08, -0.22)
-    leftForearm.rotation.z = 0.2
+    leftForearm.position.set(-0.1, -0.15, -0.12)
+    leftForearm.rotation.z = 0.15
     this.playerHands.add(leftForearm)
 
-    // Forearm (right)
+    // Forearm (right) - Größer und sichtbarer!
     const rightForearm = new THREE.Mesh(forearmGeometry.clone(), handMaterial)
-    rightForearm.position.set(0.15, -0.08, -0.22)
-    rightForearm.rotation.z = -0.2
+    rightForearm.position.set(0.2, -0.15, -0.12)
+    rightForearm.rotation.z = -0.15
     this.playerHands.add(rightForearm)
 
     this.camera.add(this.playerHands)
@@ -777,16 +783,16 @@ export class UltimateFPSEngineV2 {
       this.weaponModel.position.z = -0.4
       this.weaponModel.rotation.set(0, -Math.PI / 2, 0)
     } else {
-      // Hip Fire Position (V2 Fix!) - Individuell angepasst
+      // 🔥 V16: Hip Fire Position - FPS-Standard (groß und nah!)
       if (currentWeapon.id === 'glxy_awp') {
-        this.weaponModel.position.set(0.3, -0.15, -0.3) // AWP (näher)
-        this.weaponModel.rotation.set(-0.1, -Math.PI / 2, 0)
+        this.weaponModel.position.set(0.35, -0.25, -0.2) // AWP FPS-Standard!
+        this.weaponModel.rotation.set(-0.05, -Math.PI / 2, 0)
       } else if (currentWeapon.id === 'glxy_desert_eagle') {
-        this.weaponModel.position.set(0.15, -0.22, -0.4) // ✅ Deagle PERFEKT!
+        this.weaponModel.position.set(0.2, -0.3, -0.2) // Deagle FPS-Standard!
         this.weaponModel.rotation.set(0, -Math.PI / 2, 0)
       } else {
-        this.weaponModel.position.set(0.25, -0.18, -0.35) // M4A1 (näher & höher)
-        this.weaponModel.rotation.set(-0.05, -Math.PI / 2, 0)
+        this.weaponModel.position.set(0.3, -0.25, -0.18) // M4A1 FPS-Standard!
+        this.weaponModel.rotation.set(-0.03, -Math.PI / 2, 0)
       }
       
       // Weapon Bob while moving
@@ -865,15 +871,15 @@ export class UltimateFPSEngineV2 {
       this.weaponModel.position.z += kickbackAmount
       
       setTimeout(() => {
-        // Reset to weapon-specific position (V2 Fix!)
+        // 🔥 V16: Reset to FPS-Standard weapon positions!
         if (this.weaponModel) {
           const currentWeapon = this.weapons[this.player.stats.currentWeaponIndex]
           if (currentWeapon.id === 'glxy_awp') {
-            this.weaponModel.position.z = -0.3 // AWP (näher)
+            this.weaponModel.position.z = -0.2 // AWP FPS-Standard!
           } else if (currentWeapon.id === 'glxy_desert_eagle') {
-            this.weaponModel.position.z = -0.4 // ✅ Deagle PERFEKT!
+            this.weaponModel.position.z = -0.2 // Deagle FPS-Standard!
           } else {
-            this.weaponModel.position.z = -0.35 // M4A1 (näher)
+            this.weaponModel.position.z = -0.18 // M4A1 FPS-Standard!
           }
         }
       }, 80)
@@ -1033,17 +1039,23 @@ export class UltimateFPSEngineV2 {
       
       console.log(`✅ Enemy spawned: ${enemyType.name} (HP: ${enemyType.hp}, Speed: ${enemyType.speed})`)
 
-      // 🔥 FIX: Place enemy on ground (y=0)
-      // Die Modelle sind bereits korrekt skaliert, einfach y=0 verwenden
+      // 🔥 FIX V16: Berechne korrekte Y-Position basierend auf Bounding Box!
+      // Problem: Modelle haben unterschiedliche Pivot-Points (manche am Kopf, manche am Fuß)
+      const bbox = new THREE.Box3().setFromObject(enemyGroup)
+      const modelHeight = bbox.max.y - bbox.min.y
+      const pivotOffset = -bbox.min.y // Offset von Pivot zum Boden
+      
+      console.log(`📏 Model: Height=${modelHeight.toFixed(2)}, PivotOffset=${pivotOffset.toFixed(2)}`)
+      
       const angle = Math.random() * Math.PI * 2
       const distance = 20 + Math.random() * 30
       enemyGroup.position.set(
         this.player.position.x + Math.cos(angle) * distance,
-        0, // 🔥 FIX: Einfach auf dem Boden (y=0)
+        pivotOffset, // 🔥 FIX: Korrigiere Pivot-Offset!
         this.player.position.z + Math.sin(angle) * distance
       )
       
-      console.log(`📏 Enemy placed at ground level (y=0)`)
+      console.log(`✅ Enemy placed on ground (y=${pivotOffset.toFixed(2)})`)
 
       // Face the player
       const dirToPlayer = new THREE.Vector3().subVectors(this.player.position, enemyGroup.position)
