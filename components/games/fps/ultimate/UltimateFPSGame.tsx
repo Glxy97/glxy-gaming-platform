@@ -2,7 +2,7 @@
 'use client'
 
 import React, { useEffect, useRef, useState } from 'react'
-import { UltimateFPSEngineV2 } from './core/UltimateFPSEngineV2'
+import { UltimateFPSEngineV3 } from './core/UltimateFPSEngineV3'
 import { GameModeSelector } from './ui/GameModeSelector'
 import type { GameMode } from './types/GameTypes'
 import { Card } from '@/components/ui/card'
@@ -33,7 +33,7 @@ interface GameStats {
 
 export default function UltimateFPSGame() {
   const containerRef = useRef<HTMLDivElement>(null)
-  const engineRef = useRef<UltimateFPSEngineV2 | null>(null)
+  const engineRef = useRef<UltimateFPSEngineV3 | null>(null)
 
   const [gameStats, setGameStats] = useState<GameStats & { isDead?: boolean, isAiming?: boolean }>({
     health: 100,
@@ -65,8 +65,8 @@ export default function UltimateFPSGame() {
   useEffect(() => {
     if (!containerRef.current || !gameStarted) return
 
-    // Initialize Engine V2
-    const engine = new UltimateFPSEngineV2(
+    // Initialize Engine V3 (PHASE 5 - Full Integration!)
+    const engine = new UltimateFPSEngineV3(
       containerRef.current,
       (stats) => setGameStats(stats),
       (result) => console.log('Game End:', result)
