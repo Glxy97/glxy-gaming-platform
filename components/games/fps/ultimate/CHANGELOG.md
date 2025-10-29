@@ -9,11 +9,79 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Phase 2: Visual Effects (Planned)
-- Muzzle Flash System
-- Blood Effects
-- Bullet Tracers
-- Particle Manager
+### Phase 2: Movement System (In Progress)
+- Advanced Movement Controller
+- Physics Engine Integration
+- AI System
+- Visual Effects
+
+---
+
+## [1.2.0-alpha] - 2025-10-29
+
+### Added - Sprint 1: Modular Weapon System ✅
+
+#### Data Architecture
+- **WeaponData.ts** - Extended weapon data system
+  - Progression & Economy system (price, unlockLevel, specialProperties)
+  - CS:GO-style recoil patterns (30-shot spray)
+  - Comprehensive stat system (damage, accuracy, recoil, spread, penetration)
+  - ADS (Aim Down Sights) system with FOV, speed, movement penalty
+  - Visual & audio configuration
+  - Helper functions (toVector3, toEuler, getFireDelay, validateWeaponData)
+
+- **AttachmentData.ts** (224 lines) - Complete attachment system
+  - 8 Attachment Types (Barrel, Optic, Underbarrel, Magazine, Stock, Laser, Grip, Muzzle)
+  - AttachmentEffect interface for stat modifications
+  - Compatibility system (weapon ID and type whitelisting)
+  - Rarity tiers (Common, Rare, Epic, Legendary)
+  - Helper functions (applyAttachmentEffect, combineAttachmentEffects, isAttachmentCompatible)
+
+- **SkinData.ts** (242 lines) - Professional skin system
+  - 5 Rarity tiers (Common, Rare, Epic, Legendary, Mythic)
+  - Wear levels (Factory New, Minimal Wear, Field-Tested, Well-Worn, Battle-Scarred)
+  - StatTrak integration (kill tracking)
+  - Visual effects & animations
+  - Progression system (unlockLevel, prerequisites)
+  - Helper functions (rarity colors, price multipliers, wear effects)
+
+- **weapons-catalog.ts** (1,320 lines) - Complete 20-weapon arsenal
+  - **Assault Rifles (3)**: AR-15 Tactical, BR-16 Marksman, C8 Carbine
+  - **Submachine Guns (3)**: SMG-9, PDW-45, TAC-SMG
+  - **Shotguns (2)**: Riot Pump, Auto-12
+  - **Sniper Rifles (3)**: Longshot Marksman, Tactical Marksman, Arctic Hunter
+  - **Light Machine Guns (2)**: MG-42 Heavy, SAW-249
+  - **Pistols (4)**: P250 Service, Desert Eagle, Burst-93R, Auto-18
+  - **Energy Weapons (2)**: Plasma Rifle, Railgun
+  - **Special (1)**: Rocket Launcher
+  - Helper functions (getWeaponById, getWeaponsByType, getWeaponsByCategory, getWeaponsAtLevel)
+
+#### Testing
+- **weapons-catalog.test.ts** (280 lines) - Comprehensive unit tests
+  - 20+ test cases covering catalog integrity
+  - Category distribution validation
+  - Helper function tests
+  - Progression system tests
+  - Stats balance validation
+
+#### Integration Features
+- All weapons from GLXYWeapons.tsx professionally converted
+- Realistic stat balancing based on weapon types
+- Professional recoil pattern generation
+- Sound path generation per weapon type
+- Ready for BaseWeapon and WeaponManager integration
+
+### Fixed
+- TypeScript duplicate identifier errors in WeaponData.ts
+- Import type vs value usage in weapons-catalog.ts
+- Generic type modification in AttachmentData.ts
+
+### Architecture
+- Data-Driven Design (ScriptableObject-style)
+- Separation of Concerns (Data, Logic, Presentation)
+- Type-Safe (Strict TypeScript)
+- Extensible (Easy to add new weapons/attachments/skins)
+- Test-Driven Development
 
 ---
 

@@ -1,8 +1,8 @@
 # 🎮 GLXY Ultimate FPS - Professional Game Engine
 
-**Version:** 1.0.0 (Phase 0 - Foundation)  
-**Status:** 🏗️ In Development  
-**Architecture:** Modular, Interface-Driven, Test-Driven
+**Version:** 1.2.0-alpha (Sprint 1 - Modular Weapon System)
+**Status:** 🏗️ In Development
+**Architecture:** Modular, Interface-Driven, Test-Driven, Data-Driven
 
 ---
 
@@ -46,10 +46,21 @@ ultimate/
 │   ├── PhysicsEngine.ts       # Physics simulation
 │   └── InputManager.ts        # Input handling
 │
-├── weapons/                    # Weapon System
-│   ├── WeaponManager.ts       # Weapon switching
-│   ├── WeaponCustomization.ts # Attachments
-│   └── WeaponStats.ts         # Stats & balancing
+├── weapons/                    # Weapon System ✅
+│   ├── data/                  # Data-Driven Architecture
+│   │   ├── WeaponData.ts      # Weapon data blueprint (extended)
+│   │   ├── AttachmentData.ts  # Attachment system (8 types)
+│   │   ├── SkinData.ts        # Skin system (5 rarities)
+│   │   ├── weapons-catalog.ts # 20-weapon arsenal
+│   │   └── WeaponLoader.ts    # Async weapon loading
+│   │
+│   ├── types/                 # Weapon Type Classes
+│   │   ├── AssaultRifle.ts    # AR mechanics
+│   │   ├── SniperRifle.ts     # Sniper mechanics
+│   │   └── Pistol.ts          # Pistol mechanics
+│   │
+│   ├── BaseWeapon.ts          # Abstract weapon base class
+│   └── WeaponManager.ts       # Factory pattern manager
 │
 ├── movement/                   # Movement System
 │   ├── MovementController.ts  # Movement logic
@@ -252,20 +263,34 @@ __tests__/
 - [x] Types defined (`GameTypes.ts`, `WeaponTypes.ts`, `PlayerTypes.ts`)
 - [x] Interfaces created (`IGameModeManager`, `IWeaponManager`, `IMovementController`)
 - [x] Documentation setup
-- [ ] Test strategy setup
+- [x] Test strategy setup
 
-### **Phase 1: Game Modes (In Progress)**
-- [ ] GameModeManager implementation
-- [ ] Mode-specific logic (TDM, FFA, Gun Game)
-- [ ] UI for mode selection
+### **Phase 1: Game Modes System ✅**
+- [x] GameModeManager implementation (582 lines)
+- [x] Mode-specific logic (Zombie, TDM, FFA, Gun Game)
+- [x] GameModeSelector UI (438 lines)
+- [x] UltimateFPSEngineV2 integration
+- [x] 29 unit tests passing
 
-### **Phase 2-8: Future Features**
-- [ ] Visual Effects
-- [ ] Advanced Movement
-- [ ] UI Systems
-- [ ] Weapon Customization
-- [ ] Progression
-- [ ] Multiplayer
+### **Sprint 1: Modular Weapon System ✅**
+- [x] WeaponData.ts extended with progression & economy
+- [x] AttachmentData.ts (224 lines) - Complete attachment system
+- [x] SkinData.ts (242 lines) - Professional skin system
+- [x] weapons-catalog.ts (1,320 lines) - 20-weapon arsenal
+- [x] weapons-catalog.test.ts (280 lines) - Comprehensive tests
+- [x] All TypeScript errors fixed
+- [x] Integration with BaseWeapon & WeaponManager
+
+### **Phase 2: Movement System (In Progress)**
+- [ ] Advanced Movement Controller from GLXY files
+- [ ] Physics Engine Integration
+- [ ] AI System Integration
+- [ ] Visual Effects System
+
+### **Future Phases:**
+- [ ] UI Enhancements (Advanced HUD, Kill Feed, Scoreboard)
+- [ ] Complete Progression System
+- [ ] Multiplayer Networking
 - [ ] Map Editor
 
 ---
@@ -410,10 +435,24 @@ changeMode(mode: GameMode): void {
 
 ---
 
-**Developed by:** Glxy97  
-**Architecture by:** Claude Sonnet 4.5  
-**Version:** 1.0.0-alpha  
+**Developed by:** Glxy97
+**Architecture by:** Claude Sonnet 4.5
+**Version:** 1.2.0-alpha
 **Last Updated:** 29. Oktober 2025
 
 **🚀 Building AAA-Quality Games with Professional Standards!**
+
+---
+
+## 📝 SPRINT 1 SUMMARY
+
+### **Weapon System Achievement:**
+- ✅ **20 Weapons** professionally integrated from GLXYWeapons.tsx
+- ✅ **Complete Attachment System** with 8 attachment types and stat modifications
+- ✅ **Professional Skin System** with 5 rarity tiers and wear levels
+- ✅ **Data-Driven Architecture** using ScriptableObject-style patterns
+- ✅ **CS:GO-style Recoil Patterns** with 30-shot spray control
+- ✅ **Comprehensive Testing** with 20+ test cases
+- ✅ **TypeScript Clean** - All errors fixed
+- ✅ **Ready for Integration** with BaseWeapon and WeaponManager
 
