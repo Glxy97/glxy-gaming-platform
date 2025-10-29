@@ -3,6 +3,8 @@
 
 import React, { useEffect, useRef, useState } from 'react'
 import { UltimateFPSEngineV2 } from './core/UltimateFPSEngineV2'
+import { GameModeSelector } from './ui/GameModeSelector'
+import type { GameMode } from './types/GameTypes'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -57,6 +59,8 @@ export default function UltimateFPSGame() {
   })
 
   const [gameStarted, setGameStarted] = useState(false)
+  const [showModeSelector, setShowModeSelector] = useState(false)
+  const [selectedMode, setSelectedMode] = useState<GameMode>('zombie')
 
   useEffect(() => {
     if (!containerRef.current || !gameStarted) return
@@ -85,6 +89,51 @@ export default function UltimateFPSGame() {
   }
 
   if (!gameStarted) {
+    // PROFESSIONELL: Mode Selector Screen
+    if (showModeSelector) {
+      return (
+        <div className="relative w-full h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-8 overflow-y-auto">
+          <div className="max-w-7xl mx-auto space-y-6">
+            {/* INTELLIGENT: Back Button */}
+            <Button
+              onClick={() => setShowModeSelector(false)}
+              variant="outline"
+              className="border-gray-700"
+            >
+              ← Back to Menu
+            </Button>
+            
+            {/* PROFESSIONELL: Game Mode Selector */}
+            <GameModeSelector
+              currentMode={selectedMode}
+              availableModes={['zombie', 'team-deathmatch', 'free-for-all', 'gun-game']}
+              onModeChange={(mode) => {
+                setSelectedMode(mode)
+                console.log('🎯 Mode selected:', mode)
+              }}
+            />
+            
+            {/* KORREKT: Start Button */}
+            <div className="flex justify-center">
+              <Button 
+                onClick={() => {
+                  // INTELLIGENT: Initialize engine with selected mode
+                  if (engineRef.current) {
+                    engineRef.current.changeGameMode(selectedMode)
+                  }
+                  setGameStarted(true)
+                }}
+                className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-bold py-6 px-12 text-xl"
+              >
+                🎮 START GAME ({selectedMode.toUpperCase()})
+              </Button>
+            </div>
+          </div>
+        </div>
+      )
+    }
+    
+    // LOGISCH: Main Menu Screen
     return (
       <div className="relative w-full h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
         <Card className="p-8 bg-black/50 backdrop-blur-lg border-purple-500/50 max-w-2xl">
@@ -96,6 +145,9 @@ export default function UltimateFPSGame() {
               <p className="text-gray-400 text-lg">
                 Das süchtig machendste Browser-FPS
               </p>
+              <Badge variant="outline" className="bg-green-500/20 text-green-300 border-green-500/50 mt-2">
+                ✨ V12: Game Modes System!
+              </Badge>
             </div>
 
             <div className="grid grid-cols-2 gap-4 text-left">
@@ -104,10 +156,10 @@ export default function UltimateFPSGame() {
                   <Zap className="w-4 h-4" /> Features
                 </h3>
                 <ul className="text-sm text-gray-300 space-y-1">
+                  <li>✅ 4 Game Modes</li>
                   <li>✅ 3D Three.js Engine</li>
                   <li>✅ 3 Waffen-Klassen</li>
                   <li>✅ Smart AI Enemies</li>
-                  <li>✅ Cinematic Effects</li>
                 </ul>
               </div>
 
@@ -125,15 +177,24 @@ export default function UltimateFPSGame() {
               </div>
             </div>
 
+            {/* INTELLIGENT: Mode Selection Button */}
+            <Button 
+              onClick={() => setShowModeSelector(true)}
+              className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-bold py-6 text-xl mb-2"
+            >
+              🎮 SELECT GAME MODE
+            </Button>
+
             <Button 
               onClick={() => setGameStarted(true)}
-              className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-bold py-6 text-xl"
+              variant="outline"
+              className="w-full border-purple-500 text-purple-400 hover:bg-purple-500/10 font-bold py-4 text-lg"
             >
-              🎮 START GAME
+              ⚡ QUICK START ({selectedMode})
             </Button>
 
             <p className="text-xs text-gray-500">
-              Click "START GAME" and then click on the game to lock pointer
+              Click "SELECT GAME MODE" to choose or "QUICK START" for default mode
             </p>
           </div>
         </Card>

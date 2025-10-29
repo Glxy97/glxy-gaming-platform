@@ -71,10 +71,13 @@ export function addWebSocketSecurityHeaders(response: NextResponse): NextRespons
     "default-src 'self'",
     "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
     "style-src 'self' 'unsafe-inline'",
-    "img-src 'self' data: https:",
-    "connect-src 'self' ws: wss:",
+    "font-src 'self' data: https://r2cdn.perplexity.ai https://fonts.gstatic.com",
+    "img-src 'self' data: https: blob:",
+    "media-src 'self' blob:",
+    "connect-src 'self' ws: wss: blob:",
     "frame-src 'none'",
-    "object-src 'none'"
+    "object-src 'none'",
+    "worker-src 'self' blob:"
   ].join('; ')
 
   response.headers.set('Content-Security-Policy', csp)

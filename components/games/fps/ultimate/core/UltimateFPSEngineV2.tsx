@@ -3,6 +3,8 @@
 
 import * as THREE from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader'
+import { GameModeManager } from './GameModeManager'
+import type { GameMode } from '../types/GameTypes'
 
 /**
  * 🎮 GLXY ULTIMATE FPS ENGINE V2
@@ -13,6 +15,7 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader'
  * ✅ Death Logic (Respawn)
  * ✅ Bessere Enemy Models
  * ✅ Health clamping (nie unter 0)
+ * ✅ V11: Professional Game Mode System Integrated! 🎯
  */
 
 // ============================================================
@@ -115,6 +118,9 @@ export class UltimateFPSEngineV2 {
   private clock: THREE.Clock
   private gltfLoader: GLTFLoader
 
+  // 🎮 GAME MODE SYSTEM (V12 - Professional Integration!)
+  public gameModeManager: GameModeManager
+
   // Player
   private player: {
     position: THREE.Vector3
@@ -173,6 +179,16 @@ export class UltimateFPSEngineV2 {
     this.onGameEnd = onGameEnd
     this.clock = new THREE.Clock()
     this.gltfLoader = new GLTFLoader()
+
+    // 🎯 PROFESSIONELL: Initialize Game Mode Manager
+    this.gameModeManager = new GameModeManager()
+    
+    // 🔗 INTELLIGENT: Connect Mode Change Events
+    this.gameModeManager.onModeChange((mode: GameMode) => {
+      console.log(`🎮 Ultimate FPS: Mode changed to ${mode}`)
+      // Future: Reset game state when mode changes
+      this.resetForNewMode(mode)
+    })
 
     // Initialize Player
     this.player = {
@@ -431,25 +447,27 @@ export class UltimateFPSEngineV2 {
 
       this.weaponModel = modelScene
 
-      // REALISTIC SCALE für alle Waffen
-      this.weaponModel.scale.set(0.3, 0.3, 0.3)
+      // 🔥 FIX V2: Weapon-specific positioning (Deagle ist Referenz!)
+      // Jede Waffe individuell anpassen
       
-      // REALISTIC POSITION in Händen (rechts unten)
-      this.weaponModel.position.set(0.2, -0.2, -0.5)
-      
-      // REALISTIC ROTATION (zeigt nach vorne!)
-      // AK47/MAC10 und andere Modelle brauchen -90° Y-Rotation
-      this.weaponModel.rotation.set(0, -Math.PI / 2, 0)
-      
-      // Weapon-specific adjustments
       if (currentWeapon.id === 'glxy_awp') {
-        // AWP ist länger - etwas weiter weg
-        this.weaponModel.position.set(0.25, -0.18, -0.6)
-        this.weaponModel.rotation.set(0, -Math.PI / 2, 0)
+        // AWP: Sniper Rifle (lang, muss VIEL näher sein)
+        this.weaponModel.scale.set(0.2, 0.2, 0.2) // Kleiner
+        this.weaponModel.position.set(0.3, -0.15, -0.3) // Rechts, höher, näher
+        this.weaponModel.rotation.set(-0.1, -Math.PI / 2, 0) // Leicht nach oben
+        console.log('🎯 AWP positioned (closer, smaller)')
       } else if (currentWeapon.id === 'glxy_desert_eagle') {
-        // Pistole ist kleiner - näher ran
-        this.weaponModel.position.set(0.15, -0.22, -0.4)
+        // Deagle: PERFEKT! (Referenz)
+        this.weaponModel.scale.set(0.3, 0.3, 0.3)
+        this.weaponModel.position.set(0.15, -0.22, -0.4) // ✅ PERFEKT!
         this.weaponModel.rotation.set(0, -Math.PI / 2, 0)
+        console.log('✅ Deagle positioned perfectly')
+      } else {
+        // M4A1 / AK47: Assault Rifles (näher und höher als vorher)
+        this.weaponModel.scale.set(0.25, 0.25, 0.25) // Kleiner
+        this.weaponModel.position.set(0.25, -0.18, -0.35) // Rechts, höher, näher
+        this.weaponModel.rotation.set(-0.05, -Math.PI / 2, 0) // Leicht nach oben
+        console.log('🔫 M4A1/AK47 positioned (closer, higher)')
       }
 
       // FIX MATERIALS: Apply realistic weapon colors
@@ -545,9 +563,9 @@ export class UltimateFPSEngineV2 {
     sight.position.set(0, 0.08, -0.1)
     this.weaponModel.add(sight)
     
-    // Position: GROSS und SICHTBAR in der Mitte
-    this.weaponModel.position.set(0.05, -0.2, -0.4)
-    this.weaponModel.rotation.set(0, 0, 0)
+    // Position: Standard (M4A1-Position)
+    this.weaponModel.position.set(0.25, -0.18, -0.35)
+    this.weaponModel.rotation.set(-0.05, -Math.PI / 2, 0)
     
     // Add to camera
     this.camera.add(this.weaponModel)
@@ -759,15 +777,17 @@ export class UltimateFPSEngineV2 {
       this.weaponModel.position.z = -0.4
       this.weaponModel.rotation.set(0, -Math.PI / 2, 0)
     } else {
-      // Hip Fire Position (REALISTIC!) - Rechts unten
+      // Hip Fire Position (V2 Fix!) - Individuell angepasst
       if (currentWeapon.id === 'glxy_awp') {
-        this.weaponModel.position.set(0.25, -0.18, -0.6)
+        this.weaponModel.position.set(0.3, -0.15, -0.3) // AWP (näher)
+        this.weaponModel.rotation.set(-0.1, -Math.PI / 2, 0)
       } else if (currentWeapon.id === 'glxy_desert_eagle') {
-        this.weaponModel.position.set(0.15, -0.22, -0.4)
+        this.weaponModel.position.set(0.15, -0.22, -0.4) // ✅ Deagle PERFEKT!
+        this.weaponModel.rotation.set(0, -Math.PI / 2, 0)
       } else {
-        this.weaponModel.position.set(0.2, -0.2, -0.5) // Default (AK47)
+        this.weaponModel.position.set(0.25, -0.18, -0.35) // M4A1 (näher & höher)
+        this.weaponModel.rotation.set(-0.05, -Math.PI / 2, 0)
       }
-      this.weaponModel.rotation.set(0, -Math.PI / 2, 0)
       
       // Weapon Bob while moving
       const isMoving = this.keys.has('KeyW') || this.keys.has('KeyS') || this.keys.has('KeyA') || this.keys.has('KeyD')
@@ -845,15 +865,15 @@ export class UltimateFPSEngineV2 {
       this.weaponModel.position.z += kickbackAmount
       
       setTimeout(() => {
-        // Reset to weapon-specific position
+        // Reset to weapon-specific position (V2 Fix!)
         if (this.weaponModel) {
           const currentWeapon = this.weapons[this.player.stats.currentWeaponIndex]
           if (currentWeapon.id === 'glxy_awp') {
-            this.weaponModel.position.z = -0.6
+            this.weaponModel.position.z = -0.3 // AWP (näher)
           } else if (currentWeapon.id === 'glxy_desert_eagle') {
-            this.weaponModel.position.z = -0.4
+            this.weaponModel.position.z = -0.4 // ✅ Deagle PERFEKT!
           } else {
-            this.weaponModel.position.z = -0.5
+            this.weaponModel.position.z = -0.35 // M4A1 (näher)
           }
         }
       }, 80)
@@ -964,12 +984,36 @@ export class UltimateFPSEngineV2 {
         console.log(`✅ Enemy model loaded & cached: ${modelPath}`)
       }
 
-      // Scale to REALISTIC size (FIX: waren zu groß!)
-      enemyGroup.scale.set(0.15, 0.15, 0.15) // 70% kleiner!
+      // 🔥 FIX: Scale to REALISTIC size (viel kleiner!)
+      enemyGroup.scale.set(0.08, 0.08, 0.08) // Noch kleiner für realistische Größe!
+      
+      // 🔥 FIX: Debug - zeige alle Meshes im Modell
+      console.log(`🔍 Analyzing ${enemyType.name} model structure:`)
+      let meshCount = 0
+      enemyGroup.traverse((child) => {
+        if ((child as THREE.Mesh).isMesh) {
+          meshCount++
+          const mesh = child as THREE.Mesh
+          const bbox = new THREE.Box3().setFromObject(mesh)
+          const size = new THREE.Vector3()
+          bbox.getSize(size)
+          console.log(`  Mesh ${meshCount}: Size = (${size.x.toFixed(2)}, ${size.y.toFixed(2)}, ${size.z.toFixed(2)})`)
+          
+          // 🔥 FIX: Verstecke sehr große Meshes (wahrscheinlich Container)
+          // Wenn ein Mesh viel größer ist als die anderen, ist es wahrscheinlich ein unsichtbarer Container
+          const maxDimension = Math.max(size.x, size.y, size.z)
+          if (maxDimension > 5) {
+            console.log(`  ❌ Hiding large container mesh (size: ${maxDimension.toFixed(2)})`)
+            mesh.visible = false
+            return
+          }
+        }
+      })
+      console.log(`  Total meshes: ${meshCount}`)
       
       // FIX MATERIALS: Apply COLORED enemy materials based on type
       enemyGroup.traverse((child) => {
-        if ((child as THREE.Mesh).isMesh) {
+        if ((child as THREE.Mesh).isMesh && child.visible) { // Nur sichtbare Meshes
           child.castShadow = true
           child.receiveShadow = true
           
@@ -989,14 +1033,17 @@ export class UltimateFPSEngineV2 {
       
       console.log(`✅ Enemy spawned: ${enemyType.name} (HP: ${enemyType.hp}, Speed: ${enemyType.speed})`)
 
-      // Random spawn position (circle around player)
+      // 🔥 FIX: Place enemy on ground (y=0)
+      // Die Modelle sind bereits korrekt skaliert, einfach y=0 verwenden
       const angle = Math.random() * Math.PI * 2
       const distance = 20 + Math.random() * 30
       enemyGroup.position.set(
         this.player.position.x + Math.cos(angle) * distance,
-        0,
+        0, // 🔥 FIX: Einfach auf dem Boden (y=0)
         this.player.position.z + Math.sin(angle) * distance
       )
+      
+      console.log(`📏 Enemy placed at ground level (y=0)`)
 
       // Face the player
       const dirToPlayer = new THREE.Vector3().subVectors(this.player.position, enemyGroup.position)
@@ -1151,13 +1198,30 @@ export class UltimateFPSEngineV2 {
       this.enemies.forEach((enemy, eIndex) => {
         if (!enemy.isAlive) return
 
-        const distance = projectile.mesh.position.distanceTo(enemy.position)
-        if (distance < 1.0) {
+        // 🔥 FIX: Berechne die tatsächliche Mesh-Position (nicht nur Container)
+        let enemyWorldPos = new THREE.Vector3()
+        
+        // Finde das erste sichtbare Mesh im Enemy
+        let foundMesh = false
+        enemy.mesh.traverse((child) => {
+          if (!foundMesh && (child as THREE.Mesh).isMesh) {
+            child.getWorldPosition(enemyWorldPos)
+            foundMesh = true
+          }
+        })
+        
+        // Fallback zur Container-Position wenn kein Mesh gefunden
+        if (!foundMesh) {
+          enemyWorldPos = enemy.position
+        }
+        
+        const distance = projectile.mesh.position.distanceTo(enemyWorldPos)
+        if (distance < 0.6) { // 🔥 FIX: Kleinerer Radius wegen kleinerer Models
           enemy.health -= projectile.damage
           this.gameState.shotsHit++
           this.gameState.damageDealt += projectile.damage
 
-          this.createBloodEffect(enemy.position.clone())
+          this.createBloodEffect(enemyWorldPos.clone())
           this.scene.remove(projectile.mesh)
           this.projectiles.splice(pIndex, 1)
 
@@ -1332,6 +1396,82 @@ export class UltimateFPSEngineV2 {
   }
 
   // ============================================================
+  // GAME MODE INTEGRATION (V12)
+  // ============================================================
+
+  /**
+   * Reset game for new mode
+   * 
+   * @param mode - New game mode
+   * @remarks
+   * NACHDENKEN: Was muss beim Mode-Wechsel resettet werden?
+   * - Player position & health
+   * - Enemies
+   * - Projectiles
+   * - Game stats
+   */
+  private resetForNewMode(mode: GameMode): void {
+    // PROFESSIONELL: Get config for new mode
+    const config = this.gameModeManager.getModeConfig(mode)
+    
+    // INTELLIGENT: Reset player based on mode config
+    this.player.position.set(0, 1.6, 10)
+    this.player.stats.health = config.startingHealth
+    this.player.stats.maxHealth = config.startingHealth
+    this.player.stats.armor = config.startingArmor
+    this.player.stats.isDead = false
+    this.player.stats.isInvincible = false
+    
+    // KORREKT: Clear enemies
+    this.enemies.forEach(enemy => {
+      if (enemy.mesh) {
+        this.scene.remove(enemy.mesh)
+      }
+    })
+    this.enemies = []
+    
+    // LOGISCH: Clear projectiles
+    this.projectiles.forEach(proj => {
+      if (proj.mesh) {
+        this.scene.remove(proj.mesh)
+      }
+      proj.trailMeshes.forEach(trail => this.scene.remove(trail))
+    })
+    this.projectiles = []
+    
+    // RICHTIG: Reset game state
+    this.gameState.wave = 1
+    this.gameState.kills = 0
+    this.gameState.deaths = 0
+    this.gameState.score = 0
+    this.gameState.currentStreak = 0
+    
+    console.log(`🎯 Game reset for mode: ${mode}`)
+  }
+
+  /**
+   * Get current game mode
+   * 
+   * @returns Current game mode
+   * @remarks
+   * PROFESSIONELL: Public API für React Component
+   */
+  public getCurrentMode(): GameMode {
+    return this.gameModeManager.currentMode
+  }
+
+  /**
+   * Change game mode
+   * 
+   * @param mode - New game mode
+   * @remarks
+   * INTELLIGENT: Public API für UI
+   */
+  public changeGameMode(mode: GameMode): void {
+    this.gameModeManager.changeMode(mode)
+  }
+
+  // ============================================================
   // CLEANUP
   // ============================================================
 
@@ -1342,6 +1482,11 @@ export class UltimateFPSEngineV2 {
     window.removeEventListener('keydown', this.handleKeyDown.bind(this))
     window.removeEventListener('keyup', this.handleKeyUp.bind(this))
     window.removeEventListener('resize', this.handleResize.bind(this))
+
+    // 🎯 PROFESSIONELL: Cleanup Game Mode Manager
+    if (this.gameModeManager) {
+      this.gameModeManager.destroy()
+    }
 
     this.scene.traverse((object) => {
       if (object instanceof THREE.Mesh) {

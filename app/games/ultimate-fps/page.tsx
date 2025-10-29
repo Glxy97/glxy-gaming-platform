@@ -4,9 +4,9 @@
 import dynamic from 'next/dynamic'
 import { Suspense } from 'react'
 
-// Dynamischer Import für Client-Side Only
+// Dynamischer Import für Client-Side Only (default export!)
 const UltimateFPSGame = dynamic(
-  () => import('@/components/games/fps/ultimate/UltimateFPSGame').then(mod => ({ default: mod.UltimateFPSGame })),
+  () => import('@/components/games/fps/ultimate/UltimateFPSGame'),
   {
     ssr: false,
     loading: () => (
