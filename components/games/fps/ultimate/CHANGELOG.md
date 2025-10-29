@@ -9,11 +9,83 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Phase 2: Movement System (In Progress)
-- Advanced Movement Controller
-- Physics Engine Integration
-- AI System
-- Visual Effects
+### Phase 3: AI & Effects (Planned)
+- Enemy AI System
+- Visual Effects Engine
+- Audio System Enhancement
+
+---
+
+## [1.3.0-alpha] - 2025-10-29
+
+### Added - Sprint 2: Advanced Movement & Physics Systems ✅
+
+#### Movement Data Architecture
+- **MovementData.ts** (622 lines) - Complete movement system
+  - 10 Movement Abilities (Enhanced Sprint, Parkour Master, Tactical Breacher, etc.)
+  - 4 Ability Types (Movement, Defensive, Offensive, Tactical)
+  - Advanced Movement States (Wall Running, Mantling, Vaulting, Gliding)
+  - Stamina System with regeneration and cost multipliers
+  - Parkour Settings (auto-mantle height, vault max height, cover detection)
+  - Movement Speed Calculations (walk, run, sprint, crouch, slide, wall run)
+  - Action Validation (can perform action based on state)
+  - Helper functions (calculateMovementSpeed, hasEnoughStamina, canPerformAction)
+
+#### Physics Data Architecture
+- **PhysicsData.ts** (713 lines) - Complete physics engine
+  - 3 Physics Object Types (Static, Kinematic, Dynamic)
+  - 8 Collision Layers (Player, Enemy, Bullet, Explosion, Environment, Trigger, Debris)
+  - Physics Material Presets (Concrete, Wood, Metal, Ice, Rubber, Player, Ragdoll)
+  - Bullet Physics with ballistics (drag, gravity, penetration, ricochet)
+  - Explosion System (radius, force, damage, falloff types)
+  - Ragdoll Physics with bone constraints
+  - Collision Detection & Resolution
+  - Helper functions (calculateExplosionForce, calculateDamageFalloff, calculateBulletDrop)
+
+#### Movement Abilities Catalog
+- **Basic Abilities** (Level 1-3):
+  - Enhanced Sprint (1.8x speed, auto-mantling)
+  - Slide Kick (knockback damage)
+  - Tactical Breacher (door breaking)
+- **Advanced Abilities** (Level 4-6):
+  - Parkour Master (fluid movement chains)
+  - Wall Runner (tactical repositioning)
+  - Ghost Runner (silent movement, cover system)
+- **Elite Abilities** (Level 7-10):
+  - Acrobat Elite (aerial movement mastery)
+  - Power Slide (long slide with boost)
+  - Super Jump (massive vertical with landing damage)
+  - Blink Dash (instant teleport)
+
+#### Testing
+- **movement-system.test.ts** (517 lines) - Comprehensive unit tests
+  - 50+ test cases covering all movement functionality
+  - Ability catalog validation
+  - Helper function tests
+  - Movement calculation tests
+  - Stamina system tests
+  - Action validation tests
+  - Settings validation tests
+  - Integration tests
+
+#### Integration Features
+- Movement system integrated from GLXYAdvancedMovement.tsx and GLXYAdvancedMovement2.tsx
+- Physics engine based on GLXYPhysicsEngine.tsx
+- Professional stamina system (100 stamina, 15/second regen)
+- Realistic movement speeds (3.0 walk, 5.5 run, 8.0 sprint m/s)
+- Advanced parkour (wall run, wall climb, mantle, vault)
+- Cover system (slide-to-cover, breaching)
+- Aerial movement (double jump, gliding)
+- Combo system for movement chains
+
+### Architecture
+- Data-Driven Design (Movement & Physics separated from logic)
+- Ability-Based System (unlockable progression)
+- Stamina-Based Resource Management
+- Realistic Physics Simulation
+- Type-Safe (Strict TypeScript)
+- Extensible (Easy to add new abilities/materials)
+- Test-Driven Development
 
 ---
 

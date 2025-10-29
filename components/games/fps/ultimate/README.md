@@ -1,8 +1,8 @@
 # 🎮 GLXY Ultimate FPS - Professional Game Engine
 
-**Version:** 1.2.0-alpha (Sprint 1 - Modular Weapon System)
+**Version:** 1.3.0-alpha (Sprint 2 - Advanced Movement & Physics)
 **Status:** 🏗️ In Development
-**Architecture:** Modular, Interface-Driven, Test-Driven, Data-Driven
+**Architecture:** Modular, Interface-Driven, Test-Driven, Data-Driven, Physics-Based
 
 ---
 
@@ -15,12 +15,15 @@ GLXY Ultimate FPS is a professional, AAA-quality First-Person Shooter game engin
 - **Modern Architecture** patterns
 
 ### **Key Features:**
-✅ Multiple Game Modes (Zombie, TDM, FFA, Gun Game)  
-✅ Advanced Movement System (Sprint, Slide, Crouch)  
-✅ Professional Weapon System (Attachments, Customization)  
-✅ Visual Effects (Muzzle Flash, Blood, Particles)  
-✅ Complete UI (HUD, Kill Feed, Scoreboard, Minimap)  
-✅ Progression System (XP, Levels, Unlocks)  
+✅ Multiple Game Modes (Zombie, TDM, FFA, Gun Game)
+✅ **Advanced Movement System** (10 Abilities: Wall Run, Mantle, Vault, Glide, Blink Dash)
+✅ **Professional Weapon System** (20 Weapons, Attachments, Skins)
+✅ **Realistic Physics Engine** (Ballistics, Explosions, Ragdoll, Collisions)
+✅ **Stamina-Based Movement** (100 stamina, regen system, ability costs)
+✅ **Parkour System** (Auto-mantle, wall climbing, slide-to-cover)
+✅ Visual Effects (Muzzle Flash, Blood, Particles)
+✅ Complete UI (HUD, Kill Feed, Scoreboard, Minimap)
+✅ Progression System (XP, Levels, Unlocks)
 ✅ Multiplayer Support (Coming Soon)
 
 ---
@@ -62,11 +65,22 @@ ultimate/
 │   ├── BaseWeapon.ts          # Abstract weapon base class
 │   └── WeaponManager.ts       # Factory pattern manager
 │
-├── movement/                   # Movement System
-│   ├── MovementController.ts  # Movement logic
+├── movement/                   # Movement System ✅
+│   ├── data/                  # Data-Driven Architecture
+│   │   └── MovementData.ts    # Movement abilities & settings
+│   │
+│   ├── MovementController.ts  # Movement logic implementation
 │   ├── SprintSystem.ts        # Sprint mechanics
 │   ├── SlideSystem.ts         # Slide mechanics
 │   └── CrouchSystem.ts        # Crouch mechanics
+│
+├── physics/                    # Physics Engine ✅
+│   ├── data/                  # Data-Driven Architecture
+│   │   └── PhysicsData.ts     # Physics objects & materials
+│   │
+│   ├── PhysicsEngine.ts       # Physics simulation
+│   ├── CollisionDetection.ts  # Collision detection
+│   └── RagdollSystem.ts       # Ragdoll physics
 │
 ├── effects/                    # Visual Effects
 │   ├── MuzzleFlash.tsx        # Muzzle flash
@@ -281,11 +295,24 @@ __tests__/
 - [x] All TypeScript errors fixed
 - [x] Integration with BaseWeapon & WeaponManager
 
-### **Phase 2: Movement System (In Progress)**
-- [ ] Advanced Movement Controller from GLXY files
-- [ ] Physics Engine Integration
-- [ ] AI System Integration
-- [ ] Visual Effects System
+### **Sprint 2: Advanced Movement & Physics Systems ✅**
+- [x] MovementData.ts (622 lines) - Complete movement system
+- [x] 10 Movement Abilities (Enhanced Sprint → Blink Dash)
+- [x] Advanced Movement States (Wall Run, Mantle, Vault, Glide)
+- [x] Stamina System (100 stamina, 15/s regen, cost multipliers)
+- [x] Parkour Settings (auto-mantle, vault, cover detection)
+- [x] PhysicsData.ts (713 lines) - Complete physics engine
+- [x] Physics Material Presets (9 materials: Concrete, Wood, Metal, etc.)
+- [x] Bullet Physics (ballistics, drag, gravity, penetration, ricochet)
+- [x] Explosion System (radius, force, damage, falloff)
+- [x] movement-system.test.ts (517 lines) - 50+ test cases
+- [x] All TypeScript clean
+
+### **Phase 3: AI & Effects (Planned)**
+- [ ] Enemy AI System from GLXY files
+- [ ] Visual Effects Engine
+- [ ] Audio System Enhancement
+- [ ] Particle System Manager
 
 ### **Future Phases:**
 - [ ] UI Enhancements (Advanced HUD, Kill Feed, Scoreboard)
@@ -437,7 +464,7 @@ changeMode(mode: GameMode): void {
 
 **Developed by:** Glxy97
 **Architecture by:** Claude Sonnet 4.5
-**Version:** 1.2.0-alpha
+**Version:** 1.3.0-alpha
 **Last Updated:** 29. Oktober 2025
 
 **🚀 Building AAA-Quality Games with Professional Standards!**
@@ -455,4 +482,45 @@ changeMode(mode: GameMode): void {
 - ✅ **Comprehensive Testing** with 20+ test cases
 - ✅ **TypeScript Clean** - All errors fixed
 - ✅ **Ready for Integration** with BaseWeapon and WeaponManager
+
+---
+
+## 📝 SPRINT 2 SUMMARY
+
+### **Movement & Physics Achievement:**
+- ✅ **10 Movement Abilities** from GLXYAdvancedMovement.tsx + GLXYAdvancedMovement2.tsx
+  - Basic: Enhanced Sprint, Slide Kick, Tactical Breacher
+  - Advanced: Parkour Master, Wall Runner, Ghost Runner
+  - Elite: Acrobat Elite, Power Slide, Super Jump, Blink Dash
+- ✅ **Advanced Movement States** (14 states)
+  - Idle, Walking, Running, Sprinting, Crouching, Sliding
+  - Jumping, Falling, Wall Running, Wall Climbing
+  - Mantling, Vaulting, Gliding, Dodging
+- ✅ **Stamina-Based Resource System**
+  - 100 max stamina, 15/second regeneration
+  - Dynamic cost multipliers per ability
+  - Combo system for movement chains
+- ✅ **Parkour System**
+  - Auto-mantle (1.2m threshold)
+  - Vault system (max 2.0m)
+  - Wall run (min 3.0 m/s speed)
+  - Wall climb mechanics
+  - Slide-to-cover system (5.0m detection)
+- ✅ **Realistic Physics Engine** from GLXYPhysicsEngine.tsx
+  - 9 Material Presets (Concrete, Wood, Metal, Ice, Rubber, etc.)
+  - 3 Physics Object Types (Static, Kinematic, Dynamic)
+  - 8 Collision Layers with layer masking
+- ✅ **Ballistics System**
+  - Bullet physics with drag, gravity, penetration
+  - Ricochet chance system
+  - Distance-based damage falloff
+  - Realistic bullet drop calculation
+- ✅ **Explosion System**
+  - Configurable radius and force
+  - 3 Falloff types (linear, quadratic, cubic)
+  - Multi-layer explosion damage
+  - Visual effects integration
+- ✅ **Comprehensive Testing** with 50+ test cases
+- ✅ **TypeScript Clean** - 0 errors
+- ✅ **Ready for Controller Integration**
 
