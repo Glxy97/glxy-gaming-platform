@@ -1,6 +1,6 @@
 'use client'
 
-import { GLXYBattleRoyaleCore } from '@/components/games/fps/battle-royale/core/GLXYBattleRoyaleCore'
+import { GLXYBattleRoyaleGame } from '@/components/games/fps/battle-royale/GLXYBattleRoyaleGame'
 import { useSearchParams } from 'next/navigation'
 import { RoomMenu } from '@/components/rooms/RoomMenu'
 import { Suspense } from 'react'
@@ -19,7 +19,7 @@ function BattleRoyaleContent() {
           </div>
         </div>
       )}
-      <GLXYBattleRoyaleCore />
+      <GLXYBattleRoyaleGame />
     </div>
   )
 }
@@ -31,4 +31,3 @@ export default function BattleRoyalePage() {
     </Suspense>
   )
 }
-

@@ -14,9 +14,8 @@ export function GLXYFPSGame() {
   useEffect(() => {
     if (!containerRef.current) return
 
-    // Initialize GLXY FPS Engine
-    const engine = new GLXYFPSCore()
-    engine.init(containerRef.current)
+    // Initialize GLXY FPS Engine with container
+    const engine = new GLXYFPSCore(containerRef.current)
     engineRef.current = engine
 
     // Cleanup on unmount
@@ -41,4 +40,3 @@ export function GLXYFPSGame() {
     </div>
   )
 }
-
