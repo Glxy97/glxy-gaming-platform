@@ -68,6 +68,8 @@ interface CarPhysics {
     pressure: number
     temperature: number
   }[]
+  drift: number // NEW: Drift amount
+  nitro: number // NEW: Nitro level
 }
 
 interface CarConfiguration {
@@ -166,6 +168,8 @@ interface RaceStats {
   topSpeed: number
   averageSpeed: number
   consistency: number
+  nitroLevel: number // NEW: Nitro percentage
+  isDrifting: boolean // NEW: Drifting state
 }
 
 // Car configurations (same as original)
@@ -393,6 +397,7 @@ const aiDriverNames = [
 export function Racing3DEnhanced() {
   // Game State
   const [gameState, setGameState] = useState<'menu' | 'garage' | 'track_select' | 'race' | 'paused' | 'results'>('menu')
+  const [gameMode, setGameMode] = useState<'circuit' | 'drift' | 'timeAttack' | 'battleRoyale'>('circuit') // NEW: Game Modes
   const [selectedCar, setSelectedCar] = useState<CarConfiguration>(carConfigurations[0])
   const [selectedTrack, setSelectedTrack] = useState<Track>(tracks[0])
   const [raceStats, setRaceStats] = useState<RaceStats>({
@@ -413,7 +418,9 @@ export function Racing3DEnhanced() {
     sectorsTime: [0, 0, 0],
     topSpeed: 0,
     averageSpeed: 0,
-    consistency: 100
+    consistency: 100,
+    nitroLevel: 100, // NEW
+    isDrifting: false // NEW
   })
 
   // 3D Scene
@@ -450,7 +457,9 @@ export function Racing3DEnhanced() {
       { wear: 100, grip: 1, pressure: 2.2, temperature: 80 },
       { wear: 100, grip: 1, pressure: 2.2, temperature: 80 },
       { wear: 100, grip: 1, pressure: 2.2, temperature: 80 }
-    ]
+    ],
+    drift: 0, // NEW
+    nitro: 100 // NEW
   })
 
   // AI Opponents

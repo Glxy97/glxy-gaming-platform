@@ -1,14 +1,27 @@
-
 'use client'
 
-import { GLXYFPSGame } from '@/components/games/fps/GLXYFPSGame'
+import dynamic from 'next/dynamic'
 import { useSearchParams } from 'next/navigation'
 import { RoomMenu } from '@/components/rooms/RoomMenu'
 import { Suspense } from 'react'
 
+// Dynamischer Import für Three.js (Client-only)
+const UltimateFPSGame = dynamic(
+  () => import('@/components/games/fps/ultimate/UltimateFPSGame').then(mod => mod.default),
+  { 
+    ssr: false,
+    loading: () => (
+      <div className="flex items-center justify-center h-screen bg-black">
+        <div className="text-white text-xl">Loading Ultimate FPS...</div>
+      </div>
+    )
+  }
+)
+
 function FPSGameContent() {
   const params = useSearchParams()
   const roomId = params?.get('roomId') || ''
+  
   return (
     <div className="space-y-3">
       {roomId && (
@@ -20,7 +33,7 @@ function FPSGameContent() {
           </div>
         </div>
       )}
-      <GLXYFPSGame />
+      <UltimateFPSGame />
     </div>
   )
 }

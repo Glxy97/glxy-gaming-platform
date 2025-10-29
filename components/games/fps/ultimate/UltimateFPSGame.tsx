@@ -29,7 +29,7 @@ interface GameStats {
   roundTime: number
 }
 
-export function UltimateFPSGame() {
+export default function UltimateFPSGame() {
   const containerRef = useRef<HTMLDivElement>(null)
   const engineRef = useRef<UltimateFPSEngineV2 | null>(null)
 

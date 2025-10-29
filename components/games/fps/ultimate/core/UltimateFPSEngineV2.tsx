@@ -99,6 +99,7 @@ export interface UltimatePlayerStats {
   isCrouching: boolean
   isAiming: boolean
   isDead: boolean
+  isInvincible: boolean // Spawnschutz!
 }
 
 // ============================================================
@@ -189,7 +190,8 @@ export class UltimateFPSEngineV2 {
         isSprinting: false,
         isCrouching: false,
         isAiming: false,
-        isDead: false
+        isDead: false,
+        isInvincible: false // Initial kein Spawnschutz
       }
     }
 
@@ -429,21 +431,25 @@ export class UltimateFPSEngineV2 {
 
       this.weaponModel = modelScene
 
-      // Scale to VERY visible size
-      this.weaponModel.scale.set(0.4, 0.4, 0.4)
+      // REALISTIC SCALE für alle Waffen
+      this.weaponModel.scale.set(0.3, 0.3, 0.3)
       
-      // Position: Centered and visible in hands
-      this.weaponModel.position.set(0.05, -0.2, -0.4)
+      // REALISTIC POSITION in Händen (rechts unten)
+      this.weaponModel.position.set(0.2, -0.2, -0.5)
       
-      // Try different rotations to find correct orientation
-      // Most GLB exports need Y-axis rotation
-      this.weaponModel.rotation.set(0, Math.PI / 2, 0) // 90° turn (try this first)
+      // REALISTIC ROTATION (zeigt nach vorne!)
+      // AK47/MAC10 und andere Modelle brauchen -90° Y-Rotation
+      this.weaponModel.rotation.set(0, -Math.PI / 2, 0)
       
-      // Fine-tune based on weapon type
+      // Weapon-specific adjustments
       if (currentWeapon.id === 'glxy_awp') {
-        // AWP is longer, push back
-        this.weaponModel.position.z = -0.5
-        this.weaponModel.rotation.set(0, -Math.PI / 2, 0) // Try opposite direction
+        // AWP ist länger - etwas weiter weg
+        this.weaponModel.position.set(0.25, -0.18, -0.6)
+        this.weaponModel.rotation.set(0, -Math.PI / 2, 0)
+      } else if (currentWeapon.id === 'glxy_desert_eagle') {
+        // Pistole ist kleiner - näher ran
+        this.weaponModel.position.set(0.15, -0.22, -0.4)
+        this.weaponModel.rotation.set(0, -Math.PI / 2, 0)
       }
 
       // FIX MATERIALS: Apply realistic weapon colors
@@ -743,29 +749,33 @@ export class UltimateFPSEngineV2 {
   private updateWeaponAnimation(deltaTime: number): void {
     if (!this.weaponModel) return
 
-    // ADS Position (Aim Down Sights)
+    const currentWeapon = this.weapons[this.player.stats.currentWeaponIndex]
+
+    // ADS Position (Aim Down Sights) - REALISTIC!
     if (this.player.stats.isAiming && !this.player.stats.isDead) {
-      // Move weapon to center for ADS
-      this.weaponModel.position.x = 0 // Center
-      this.weaponModel.position.y = -0.1 // Eye level
-      this.weaponModel.position.z = -0.25 // Closer
-      // Keep forward rotation
-      this.weaponModel.rotation.set(0, Math.PI, 0)
+      // Zentrieren für ADS
+      this.weaponModel.position.x = 0
+      this.weaponModel.position.y = -0.12
+      this.weaponModel.position.z = -0.4
+      this.weaponModel.rotation.set(0, -Math.PI / 2, 0)
     } else {
-      // Hip Fire Position (default)
-      this.weaponModel.position.x = 0.1
-      this.weaponModel.position.y = -0.15
-      this.weaponModel.position.z = -0.3
-      // Keep forward rotation
-      this.weaponModel.rotation.set(0, Math.PI, 0)
+      // Hip Fire Position (REALISTIC!) - Rechts unten
+      if (currentWeapon.id === 'glxy_awp') {
+        this.weaponModel.position.set(0.25, -0.18, -0.6)
+      } else if (currentWeapon.id === 'glxy_desert_eagle') {
+        this.weaponModel.position.set(0.15, -0.22, -0.4)
+      } else {
+        this.weaponModel.position.set(0.2, -0.2, -0.5) // Default (AK47)
+      }
+      this.weaponModel.rotation.set(0, -Math.PI / 2, 0)
       
       // Weapon Bob while moving
       const isMoving = this.keys.has('KeyW') || this.keys.has('KeyS') || this.keys.has('KeyA') || this.keys.has('KeyD')
       
       if (isMoving && !this.player.stats.isDead) {
         const time = this.clock.getElapsedTime()
-        this.weaponModel.position.y += Math.sin(time * 10) * 0.01
-        this.weaponModel.position.x += Math.cos(time * 5) * 0.005
+        this.weaponModel.position.y += Math.sin(time * 10) * 0.015
+        this.weaponModel.position.x += Math.cos(time * 5) * 0.008
       }
     }
   }
@@ -831,10 +841,22 @@ export class UltimateFPSEngineV2 {
 
     // Weapon Kickback Animation
     if (this.weaponModel) {
-      this.weaponModel.position.z += 0.05
+      const kickbackAmount = 0.08
+      this.weaponModel.position.z += kickbackAmount
+      
       setTimeout(() => {
-        if (this.weaponModel) this.weaponModel.position.z = -0.3
-      }, 50)
+        // Reset to weapon-specific position
+        if (this.weaponModel) {
+          const currentWeapon = this.weapons[this.player.stats.currentWeaponIndex]
+          if (currentWeapon.id === 'glxy_awp') {
+            this.weaponModel.position.z = -0.6
+          } else if (currentWeapon.id === 'glxy_desert_eagle') {
+            this.weaponModel.position.z = -0.4
+          } else {
+            this.weaponModel.position.z = -0.5
+          }
+        }
+      }, 80)
     }
   }
 
@@ -942,8 +964,8 @@ export class UltimateFPSEngineV2 {
         console.log(`✅ Enemy model loaded & cached: ${modelPath}`)
       }
 
-      // Scale soldier to appropriate size
-      enemyGroup.scale.set(0.5, 0.5, 0.5)
+      // Scale to REALISTIC size (FIX: waren zu groß!)
+      enemyGroup.scale.set(0.15, 0.15, 0.15) // 70% kleiner!
       
       // FIX MATERIALS: Apply COLORED enemy materials based on type
       enemyGroup.traverse((child) => {
@@ -1148,7 +1170,7 @@ export class UltimateFPSEngineV2 {
 
     // Enemy Projectile vs Player
     this.projectiles.forEach((projectile, index) => {
-      if (projectile.isPlayerProjectile || this.player.stats.isDead) return
+      if (projectile.isPlayerProjectile || this.player.stats.isDead || this.player.stats.isInvincible) return // 🛡️ Spawnschutz!
 
       const distance = projectile.mesh.position.distanceTo(this.player.position)
       if (distance < 0.5) {
@@ -1204,15 +1226,22 @@ export class UltimateFPSEngineV2 {
       this.player.stats.isDead = false
       this.player.stats.isAiming = false
       this.player.stats.isReloading = false
+      this.player.stats.isInvincible = true // 🛡️ SPAWNSCHUTZ AKTIVIERT!
       
       // Reset Camera FOV (if was ADS)
       this.camera.fov = 75
       this.camera.updateProjectionMatrix()
       
-      // Respawn at CONSISTENT Spawn Point  
-      this.player.position.set(0, 1.6, 5) // Center of map, eye level, forward
-      this.player.rotation.set(0, 0, 0) // Looking forward (north)
-      this.player.velocity.set(0, 0, 0) // Stop all movement
+      // Respawn at CONSISTENT Spawn Point (FEST!)
+      this.player.position.set(0, 1.6, 10) // Mitte, Augenhöhe, weiter hinten
+      this.player.rotation.set(0, 0, 0) // Blick nach vorne
+      this.player.velocity.set(0, 0, 0) // Bewegung stoppen
+      
+      // Spawnschutz nach 3 Sekunden entfernen
+      setTimeout(() => {
+        this.player.stats.isInvincible = false
+        console.log('🛡️ Spawnschutz deaktiviert!')
+      }, 3000)
       
       // Update camera immediately
       this.camera.position.copy(this.player.position)
