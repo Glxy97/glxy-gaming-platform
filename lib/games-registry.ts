@@ -230,6 +230,28 @@ export const GAMES_REGISTRY: Game[] = [
   // FPS GAMES (Die 118+ Games!)
   // ========================================
   {
+    id: 'ultimate-fps',
+    name: '🔥 GLXY ULTIMATE FPS',
+    description: 'Das süchtig machendste Browser-FPS - 3D Engine, Waffen, AI, Effects!',
+    category: 'fps',
+    icon: '💎',
+    href: '/games/ultimate-fps',
+    componentPath: 'components/games/fps/ultimate/UltimateFPSGame.tsx',
+    players: '1-16',
+    duration: '10-30m',
+    difficulty: '★★★★★',
+    isNew: true,
+    isBeta: false,
+    isFeatured: true,
+    hasPractice: true,
+    hasMultiplayer: false,
+    hasAI: true,
+    features: ['Three.js 3D', 'Smart AI', 'Cinematic Effects', '3 Waffen', 'Progression', 'Stats Tracking'],
+    tags: ['fps', '3d', 'action', 'shooter', 'ultimate'],
+    minPlayers: 1,
+    maxPlayers: 16
+  },
+  {
     id: 'glxy-fps-core',
     name: 'GLXY Battle Arena',
     description: 'Taktischer Shooter der nächsten Generation',

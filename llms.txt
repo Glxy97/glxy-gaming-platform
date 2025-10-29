@@ -102,6 +102,110 @@ glxy-gaming-platform/
 29. **Typing Race** - Speed Typing
 30. **Reaction Test** - Reflex Training
 
+## 🌟 FEATURED: Ultimate FPS Game
+
+**Das geilste Browser-FPS der Plattform!**
+
+### 🎮 Technical Excellence
+- **Engine:** Three.js (WebGL 3D)
+- **Models:** Professional GLB Assets (18MB+ high-quality)
+- **Performance:** 60+ FPS target
+- **Architecture:** Modular, Type-safe TypeScript
+
+### 🔫 Weapon System
+```
+1. AK47    → Assault Rifle (Key: 1)
+2. AWP     → Sniper Rifle (Key: 2)
+3. Shotgun → Close Quarters (Key: 3)
+```
+
+**Features:**
+- Professional 3D weapon models
+- Realistic gunmetal materials (PBR)
+- Aim Down Sights (ADS) - Right Click
+- Automatic fire - Hold Left Click
+- Smooth weapon switching
+- Reload system (R key)
+
+### 👾 Enemy System
+**5 Diverse Enemy Types:**
+```
+🔴 Terrorist (100 HP, Speed: 3)   - Red, Aggressive
+🔵 Police    (80 HP, Speed: 4)    - Blue, Defensive
+🟢 Military  (150 HP, Speed: 2.5) - Green, Elite
+🟤 Soldier   (100 HP, Speed: 3)   - Brown, Standard
+🟣 Zombie    (50 HP, Speed: 2)    - Purple, Horror
+```
+
+**Features:**
+- Random enemy type spawn
+- Color-coded for easy identification
+- Varying health, speed, and damage
+- Professional character models
+- Intelligent AI behavior
+
+### 🎨 Visual Quality
+```
+Materials:
+- Weapon: Gunmetal (metalness: 0.9, roughness: 0.3)
+- Enemies: PBR materials with type-specific colors
+- Shadows: Soft shadow mapping
+- Lighting: Hemisphere + Directional
+
+Models:
+- tactical_player.glb (18MB) - Player arms
+- terrorist.glb (5.8MB) - Enemy Type 1
+- police.glb (2.9MB) - Enemy Type 2
+- military.glb (20.8MB) - Enemy Type 3
+- AK47, AWP, Shotgun - Weapons
+```
+
+### ⚡ Performance
+- Model caching for efficiency
+- Object pooling for projectiles
+- Optimized collision detection
+- 60+ FPS on modern hardware
+
+### 📁 File Location
+```
+components/games/fps/ultimate/
+├── UltimateFPSGame.tsx           - React Wrapper
+├── core/
+│   └── UltimateFPSEngineV2.tsx   - Game Engine (1300+ lines)
+└── public/models/
+    ├── weapons/                   - 6 weapon models
+    └── characters/                - 7 character models
+```
+
+### 🎯 Controls
+```
+WASD     - Movement
+Mouse    - Aim
+Left Click   - Shoot
+Right Click  - Aim Down Sights (ADS)
+1/2/3    - Weapon Switch
+R        - Reload
+ESC      - Pause
+```
+
+### 🏆 Game Stats
+- Health: 100 HP (Red bar)
+- Armor: 50 AP (Blue bar)
+- Kills Counter
+- Accuracy Tracking
+- Streak System
+- Wave Progression
+
+### 💎 What Makes It Special
+1. **Professional 3D Models** - High-quality GLB assets
+2. **Diverse Enemies** - 5 unique enemy types
+3. **Weapon Variety** - 3 distinct weapon classes
+4. **Realistic Materials** - PBR rendering
+5. **Smooth Performance** - Optimized for 60+ FPS
+6. **Type-Safe** - Full TypeScript implementation
+
+**URL:** `/games/ultimate-fps`
+
 ## 🔒 Sicherheits-Features
 
 ### Aktueller Security-Status
