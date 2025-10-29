@@ -3,11 +3,12 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { UltimateFPSEngineV4 } from './core/UltimateFPSEngineV4'
 import { GameModeSelector } from './ui/GameModeSelector'
+import { MapEditorUI } from './editor/MapEditorUI'
 import type { GameMode } from './types/GameTypes'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Crosshair, Heart, Shield, Zap, Target, Award, Trophy } from 'lucide-react'
+import { Crosshair, Heart, Shield, Zap, Target, Award, Trophy, Edit } from 'lucide-react'
 
 interface GameStats {
   health: number
@@ -59,6 +60,7 @@ export default function UltimateFPSGame() {
 
   const [gameStarted, setGameStarted] = useState(false)
   const [showModeSelector, setShowModeSelector] = useState(false)
+  const [showMapEditor, setShowMapEditor] = useState(false)
   const [selectedMode, setSelectedMode] = useState<GameMode>('zombie')
 
   useEffect(() => {
@@ -86,6 +88,11 @@ export default function UltimateFPSGame() {
     const mins = Math.floor(seconds / 60)
     const secs = seconds % 60
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
+  }
+
+  // Map Editor View
+  if (showMapEditor) {
+    return <MapEditorUI onClose={() => setShowMapEditor(false)} />
   }
 
   if (!gameStarted) {
@@ -146,7 +153,7 @@ export default function UltimateFPSGame() {
                 Das süchtig machendste Browser-FPS
               </p>
               <Badge variant="outline" className="bg-green-500/20 text-green-300 border-green-500/50 mt-2">
-                ✨ V4: Complete System Integration (Phase 0-11)!
+                ✨ V4: Complete System + Map Editor (Phase 0-12)!
               </Badge>
             </div>
 
@@ -160,6 +167,7 @@ export default function UltimateFPSGame() {
                   <li>✅ 3D Three.js Engine</li>
                   <li>✅ 3 Waffen-Klassen</li>
                   <li>✅ Smart AI Enemies</li>
+                  <li>✨ Map Editor (NEW!)</li>
                 </ul>
               </div>
 
@@ -185,16 +193,26 @@ export default function UltimateFPSGame() {
               🎮 SELECT GAME MODE
             </Button>
 
-            <Button 
+            <Button
               onClick={() => setGameStarted(true)}
               variant="outline"
-              className="w-full border-purple-500 text-purple-400 hover:bg-purple-500/10 font-bold py-4 text-lg"
+              className="w-full border-purple-500 text-purple-400 hover:bg-purple-500/10 font-bold py-4 text-lg mb-2"
             >
               ⚡ QUICK START ({selectedMode})
             </Button>
 
+            {/* NEW: Map Editor Button */}
+            <Button
+              onClick={() => setShowMapEditor(true)}
+              variant="outline"
+              className="w-full border-orange-500 text-orange-400 hover:bg-orange-500/10 font-bold py-4 text-lg"
+            >
+              <Edit className="w-5 h-5 mr-2" />
+              🗺️ MAP EDITOR (Phase 12)
+            </Button>
+
             <p className="text-xs text-gray-500">
-              Click "SELECT GAME MODE" to choose or "QUICK START" for default mode
+              Click "SELECT GAME MODE" to choose, "QUICK START" for default mode, or "MAP EDITOR" to create custom maps
             </p>
           </div>
         </Card>
