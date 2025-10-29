@@ -1,7 +1,7 @@
 
 'use client'
 
-import { Advanced3DFPS } from '@/components/games/fps/advanced-3d-fps'
+import { GLXYBattleRoyaleCore } from '@/components/games/fps/battle-royale/core/GLXYBattleRoyaleCore'
 import { useSearchParams } from 'next/navigation'
 import { RoomMenu } from '@/components/rooms/RoomMenu'
 import { Suspense } from 'react'
@@ -20,7 +20,7 @@ function FPSGameContent() {
           </div>
         </div>
       )}
-      <Advanced3DFPS />
+      <GLXYBattleRoyaleCore />
     </div>
   )
 }
