@@ -1,12 +1,11 @@
-
 'use client'
 
-import { GLXYFPSGame } from '@/components/games/fps/GLXYFPSGame'
+import { GLXYBattleRoyaleCore } from '@/components/games/fps/battle-royale/core/GLXYBattleRoyaleCore'
 import { useSearchParams } from 'next/navigation'
 import { RoomMenu } from '@/components/rooms/RoomMenu'
 import { Suspense } from 'react'
 
-function FPSGameContent() {
+function BattleRoyaleContent() {
   const params = useSearchParams()
   const roomId = params?.get('roomId') || ''
   return (
@@ -20,15 +19,16 @@ function FPSGameContent() {
           </div>
         </div>
       )}
-      <GLXYFPSGame />
+      <GLXYBattleRoyaleCore />
     </div>
   )
 }
 
-export default function FPSGamePage() {
+export default function BattleRoyalePage() {
   return (
     <Suspense fallback={null}>
-      <FPSGameContent />
+      <BattleRoyaleContent />
     </Suspense>
   )
 }
+
