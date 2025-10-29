@@ -1,8 +1,7 @@
-// @ts-nocheck
 'use client'
 
 import React, { useEffect, useRef, useState } from 'react'
-import { UltimateFPSEngineV3 } from './core/UltimateFPSEngineV3'
+import { UltimateFPSEngineV4 } from './core/UltimateFPSEngineV4'
 import { GameModeSelector } from './ui/GameModeSelector'
 import type { GameMode } from './types/GameTypes'
 import { Card } from '@/components/ui/card'
@@ -33,7 +32,7 @@ interface GameStats {
 
 export default function UltimateFPSGame() {
   const containerRef = useRef<HTMLDivElement>(null)
-  const engineRef = useRef<UltimateFPSEngineV3 | null>(null)
+  const engineRef = useRef<UltimateFPSEngineV4 | null>(null)
 
   const [gameStats, setGameStats] = useState<GameStats & { isDead?: boolean, isAiming?: boolean }>({
     health: 100,
@@ -65,11 +64,12 @@ export default function UltimateFPSGame() {
   useEffect(() => {
     if (!containerRef.current || !gameStarted) return
 
-    // Initialize Engine V3 (PHASE 5 - Full Integration!)
-    const engine = new UltimateFPSEngineV3(
+    // Initialize Engine V4 (PHASE 11 - Complete System Integration!)
+    const engine = new UltimateFPSEngineV4(
       containerRef.current,
       (stats) => setGameStats(stats),
-      (result) => console.log('Game End:', result)
+      (result) => console.log('Game End:', result),
+      true // Enable multiplayer support (optional)
     )
 
     engineRef.current = engine
@@ -146,7 +146,7 @@ export default function UltimateFPSGame() {
                 Das süchtig machendste Browser-FPS
               </p>
               <Badge variant="outline" className="bg-green-500/20 text-green-300 border-green-500/50 mt-2">
-                ✨ V12: Game Modes System!
+                ✨ V4: Complete System Integration (Phase 0-11)!
               </Badge>
             </div>
 

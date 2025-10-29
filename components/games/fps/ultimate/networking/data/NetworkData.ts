@@ -1124,7 +1124,7 @@ export function calculateConnectionQuality(metrics: NetworkMetrics): NetworkMetr
  */
 export function calculateNetworkStability(metrics: NetworkMetrics): number {
   const jitterFactor = Math.max(0, 1 - (metrics.jitter / 100))
-  const lossF actor = Math.max(0, 1 - (metrics.packetLossRate * 10))
+  const lossFactor = Math.max(0, 1 - (metrics.packetLossRate * 10))
 
   return (jitterFactor + lossFactor) / 2
 }

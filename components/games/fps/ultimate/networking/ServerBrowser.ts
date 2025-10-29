@@ -562,7 +562,7 @@ export class ServerBrowser {
         bots: 0,
         createdAt: Date.now() - 300000,
         settings: {
-          friendly Fire: false,
+          friendlyFire: false,
           respawnTime: 5
         }
       },
