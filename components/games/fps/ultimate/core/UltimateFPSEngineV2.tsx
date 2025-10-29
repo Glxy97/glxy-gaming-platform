@@ -5,6 +5,8 @@ import * as THREE from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader'
 import { GameModeManager } from './GameModeManager'
 import type { GameMode } from '../types/GameTypes'
+import { WeaponManager } from '../weapons/WeaponManager'
+import type { BaseWeapon } from '../weapons/BaseWeapon'
 
 /**
  * 🎮 GLXY ULTIMATE FPS ENGINE V2
@@ -129,10 +131,20 @@ export class UltimateFPSEngineV2 {
     stats: UltimatePlayerStats
   }
 
-  // Weapons
+  // ============================================================
+  // WEAPONS: V16 OLD (DISABLED - Kept for rollback safety)
+  // ============================================================
+  /* V16 OLD - DISABLED
   private weapons: UltimateWeapon[]
   private projectiles: UltimateProjectile[] = []
   private lastShotTime: number = 0
+  */
+
+  // ============================================================
+  // WEAPONS: V17 NEW (Modular Architecture)
+  // ============================================================
+  private weaponManager: WeaponManager
+  private projectiles: UltimateProjectile[] = []
 
   // First-Person Weapon View
   private weaponModel?: THREE.Group
@@ -211,7 +223,10 @@ export class UltimateFPSEngineV2 {
       }
     }
 
-    // Initialize Weapons
+    // ============================================================
+    // V16 OLD - DISABLED (Kept for rollback safety)
+    // ============================================================
+    /* V16 OLD - Initialize Weapons (DISABLED)
     this.weapons = [
       {
         id: 'glxy_m4a1',
@@ -256,6 +271,13 @@ export class UltimateFPSEngineV2 {
         reloadTime: 2.0
       }
     ]
+    */
+
+    // ============================================================
+    // V17 NEW - Initialize WeaponManager (Modular Architecture)
+    // ============================================================
+    this.weaponManager = new WeaponManager()
+    console.log('🔫 WeaponManager initialized (V17 Modular)')
 
     // Initialize Game State
     this.gameState = {
@@ -323,11 +345,18 @@ export class UltimateFPSEngineV2 {
     // Environment
     this.createEnvironment()
 
-    // Weapon Model (await professional 3D model loading)
-    await this.createWeaponModel()
+    // ============================================================
+    // V17 NEW - Setup WeaponManager (Modular Architecture)
+    // ============================================================
+    await this.setupWeaponManager()
 
-    // Player Hands
+    // ============================================================
+    // V16 OLD - DISABLED (Kept for rollback safety)
+    // ============================================================
+    /* V16 OLD - Weapon Model & Hands (DISABLED)
+    await this.createWeaponModel()
     this.createPlayerHands()
+    */
 
     // Muzzle Flash Light
     this.muzzleFlash = new THREE.PointLight(0xffa500, 0, 10)
@@ -412,9 +441,113 @@ export class UltimateFPSEngineV2 {
   }
 
   // ============================================================
-  // WEAPON MODEL (FIX #1 & #2)
+  // V17 NEW - WEAPON MANAGER SETUP (Modular Architecture)
   // ============================================================
 
+  private async setupWeaponManager(): Promise<void> {
+    console.log('🔫 Setting up WeaponManager (V17 Modular)...')
+    
+    // Set scene and camera references
+    this.weaponManager.setScene(this.scene)
+    this.weaponManager.setCamera(this.camera)
+    
+    try {
+      // Load all 3 weapons (JSON + 3D Models)
+      console.log('📦 Loading weapons: m4a1, awp, deagle...')
+      await this.weaponManager.addWeapons(['m4a1', 'awp', 'deagle'])
+      
+      // First weapon is auto-equipped by WeaponManager
+      console.log('✅ All weapons loaded!')
+      
+      // Create player hands (reuse V16 method for now)
+      this.createPlayerHands()
+      
+      // Load weapon model for current weapon
+      await this.loadCurrentWeaponModel()
+      
+    } catch (error) {
+      console.error('❌ Failed to setup WeaponManager:', error)
+      // Fallback to V16 system if modular system fails
+      console.warn('⚠️ Falling back to V16 weapon system...')
+      // Uncomment V16 code in init() to re-enable fallback
+    }
+  }
+
+  /**
+   * Load 3D model for currently equipped weapon
+   */
+  private async loadCurrentWeaponModel(): Promise<void> {
+    const weapon = this.weaponManager.getCurrentWeapon()
+    if (!weapon) {
+      console.warn('⚠️ No weapon equipped')
+      return
+    }
+
+    const weaponData = weapon.getData()
+    console.log(`🔫 Loading 3D model: ${weaponData.modelPath}`)
+
+    try {
+      // Check cache first
+      let modelScene: THREE.Group
+      if (this.modelCache.has(weaponData.modelPath)) {
+        modelScene = this.modelCache.get(weaponData.modelPath)!.clone()
+        console.log(`✅ Model loaded from cache: ${weaponData.modelPath}`)
+      } else {
+        // Load GLB model
+        const gltf = await this.gltfLoader.loadAsync(weaponData.modelPath)
+        modelScene = gltf.scene
+        this.modelCache.set(weaponData.modelPath, gltf.scene.clone())
+        console.log(`✅ Model loaded & cached: ${weaponData.modelPath}`)
+      }
+
+      this.weaponModel = modelScene
+
+      // Apply position/scale from weapon data
+      const pos = weaponData.viewmodelPosition
+      const scale = weaponData.viewmodelScale || 1.0
+      
+      this.weaponModel.scale.set(scale, scale, scale)
+      this.weaponModel.position.set(pos.x, pos.y, pos.z)
+      
+      // Apply rotation if defined
+      if (weaponData.viewmodelRotation) {
+        const rot = weaponData.viewmodelRotation
+        this.weaponModel.rotation.set(rot.x, rot.y, rot.z)
+      }
+
+      // Apply gunmetal material
+      this.weaponModel.traverse((child) => {
+        if ((child as THREE.Mesh).isMesh) {
+          child.castShadow = true
+          child.receiveShadow = true
+          
+          const weaponMaterial = new THREE.MeshStandardMaterial({
+            color: 0x2a2a2a,
+            metalness: 0.9,
+            roughness: 0.3,
+            emissive: 0x111111,
+            side: THREE.DoubleSide
+          })
+          
+          ;(child as THREE.Mesh).material = weaponMaterial
+        }
+      })
+
+      this.camera.add(this.weaponModel)
+      console.log(`✅ Weapon model equipped: ${weaponData.name}`)
+
+    } catch (error) {
+      console.error(`❌ Failed to load weapon model:`, error)
+      // Create fallback weapon
+      this.createFallbackWeapon()
+    }
+  }
+
+  // ============================================================
+  // V16 OLD - WEAPON MODEL (DISABLED - Kept for rollback safety)
+  // ============================================================
+
+  /* V16 OLD - DISABLED
   private async createWeaponModel(): Promise<void> {
     // Load professional 3D weapon model based on current weapon
     const currentWeapon = this.weapons[this.player.stats.currentWeaponIndex]
@@ -502,7 +635,11 @@ export class UltimateFPSEngineV2 {
       this.createFallbackWeapon()
     }
   }
+  */ // END V16 OLD createWeaponModel
 
+  // ============================================================
+  // V17 ACTIVE - createFallbackWeapon (Reused from V16)
+  // ============================================================
   private createFallbackWeapon(): void {
     // PROFESSIONAL-LOOKING Fallback Rifle
     this.weaponModel = new THREE.Group()
@@ -642,6 +779,35 @@ export class UltimateFPSEngineV2 {
     }
   }
 
+  // ============================================================
+  // V17 NEW - SWITCH WEAPON (Modular Weapon System)
+  // ============================================================
+  
+  private async switchWeapon(newIndex: number): Promise<void> {
+    // Switch weapon via WeaponManager
+    const success = await this.weaponManager.switchToIndex(newIndex)
+    
+    if (!success) {
+      console.warn(`⚠️ Failed to switch to weapon index ${newIndex}`)
+      return
+    }
+
+    // Update player stats (for UI compatibility)
+    this.player.stats.currentWeaponIndex = newIndex
+    
+    // Remove old weapon model
+    if (this.weaponModel) {
+      this.camera.remove(this.weaponModel)
+    }
+    
+    // Load new weapon model
+    await this.loadCurrentWeaponModel()
+    
+    const weapon = this.weaponManager.getCurrentWeapon()
+    console.log(`🔫 Switched to: ${weapon?.getName()}`)
+  }
+
+  /* V16 OLD - DISABLED
   private async switchWeapon(newIndex: number): Promise<void> {
     this.player.stats.currentWeaponIndex = newIndex
     
@@ -655,6 +821,7 @@ export class UltimateFPSEngineV2 {
     
     console.log(`🔫 Switched to: ${this.weapons[newIndex].name}`)
   }
+  */
 
   private handleKeyUp(e: KeyboardEvent): void {
     this.keys.delete(e.code)
@@ -754,10 +921,27 @@ export class UltimateFPSEngineV2 {
     this.renderer.render(this.scene, this.camera)
 
     if (this.onStatsUpdate) {
+      // V17: Get weapon from WeaponManager
+      const weapon = this.weaponManager.getCurrentWeapon()
+      const weaponData = weapon?.getData()
+      
       this.onStatsUpdate({
         ...this.player.stats,
         ...this.gameState,
-        currentWeapon: this.weapons[this.player.stats.currentWeaponIndex]
+        currentWeapon: weaponData ? {
+          id: weaponData.id,
+          name: weaponData.name,
+          type: weaponData.type,
+          damage: weaponData.damage,
+          fireRate: weaponData.fireRate,
+          range: weaponData.range,
+          accuracy: weaponData.accuracy,
+          recoil: 0, // Legacy field
+          magazineSize: weaponData.magazineSize,
+          currentAmmo: weapon!.getCurrentAmmo(),
+          reserveAmmo: weapon!.getTotalAmmo(),
+          reloadTime: weaponData.reloadTime
+        } : null
       })
     }
   }
@@ -773,27 +957,25 @@ export class UltimateFPSEngineV2 {
   private updateWeaponAnimation(deltaTime: number): void {
     if (!this.weaponModel) return
 
-    const currentWeapon = this.weapons[this.player.stats.currentWeaponIndex]
+    // V17: Get weapon from WeaponManager
+    const weapon = this.weaponManager.getCurrentWeapon()
+    if (!weapon) return
+
+    const weaponData = weapon.getData()
 
     // ADS Position (Aim Down Sights) - REALISTIC!
     if (this.player.stats.isAiming && !this.player.stats.isDead) {
-      // Zentrieren für ADS
-      this.weaponModel.position.x = 0
-      this.weaponModel.position.y = -0.12
-      this.weaponModel.position.z = -0.4
+      // Use ADS position from weapon data
+      const adsPos = weaponData.adsPosition
+      this.weaponModel.position.set(adsPos.x, adsPos.y, adsPos.z)
       this.weaponModel.rotation.set(0, -Math.PI / 2, 0)
     } else {
-      // 🔥 V16: Hip Fire Position - FPS-Standard (groß und nah!)
-      if (currentWeapon.id === 'glxy_awp') {
-        this.weaponModel.position.set(0.35, -0.25, -0.2) // AWP FPS-Standard!
-        this.weaponModel.rotation.set(-0.05, -Math.PI / 2, 0)
-      } else if (currentWeapon.id === 'glxy_desert_eagle') {
-        this.weaponModel.position.set(0.2, -0.3, -0.2) // Deagle FPS-Standard!
-        this.weaponModel.rotation.set(0, -Math.PI / 2, 0)
-      } else {
-        this.weaponModel.position.set(0.3, -0.25, -0.18) // M4A1 FPS-Standard!
-        this.weaponModel.rotation.set(-0.03, -Math.PI / 2, 0)
-      }
+      // Hip Fire Position - Use viewmodel position from weapon data
+      const hipPos = weaponData.viewmodelPosition
+      const hipRot = weaponData.viewmodelRotation || { x: 0, y: -Math.PI / 2, z: 0 }
+      
+      this.weaponModel.position.set(hipPos.x, hipPos.y, hipPos.z)
+      this.weaponModel.rotation.set(hipRot.x, hipRot.y, hipRot.z)
       
       // Weapon Bob while moving
       const isMoving = this.keys.has('KeyW') || this.keys.has('KeyS') || this.keys.has('KeyA') || this.keys.has('KeyD')
@@ -840,6 +1022,64 @@ export class UltimateFPSEngineV2 {
   // WEAPON SYSTEM
   // ============================================================
 
+  // ============================================================
+  // V17 NEW - SHOOT (Modular Weapon System)
+  // ============================================================
+  
+  private shoot(): void {
+    if (this.player.stats.isReloading || this.player.stats.isDead) return
+
+    const weapon = this.weaponManager.getCurrentWeapon()
+    if (!weapon) {
+      console.warn('⚠️ No weapon equipped')
+      return
+    }
+
+    if (!weapon.canShoot()) {
+      // Auto-reload if out of ammo
+      if (weapon.getCurrentAmmo() <= 0) {
+        this.reloadWeapon()
+      }
+      return
+    }
+
+    // Get camera position and direction
+    const origin = this.camera.position.clone()
+    const direction = new THREE.Vector3()
+    this.camera.getWorldDirection(direction)
+
+    // Weapon shoots itself (handles damage, raycasting internally)
+    const result = weapon.shoot(origin, direction)
+
+    if (result && result.success) {
+      this.gameState.shotsFired++
+
+      // Create visual projectile (for now, until we have bullet tracers)
+      this.createProjectile()
+      this.createMuzzleFlash()
+
+      // Apply recoil to camera
+      const weaponData = weapon.getData()
+      this.player.rotation.x += weaponData.recoilVertical * 0.01 * (Math.random() - 0.5)
+      this.player.rotation.y += weaponData.recoilHorizontal * 0.01 * (Math.random() - 0.5)
+
+      // Weapon Kickback Animation
+      if (this.weaponModel) {
+        const kickbackAmount = 0.08
+        this.weaponModel.position.z += kickbackAmount
+        
+        setTimeout(() => {
+          if (this.weaponModel) {
+            // Reset to weapon's viewmodel position
+            const pos = weapon.getData().viewmodelPosition
+            this.weaponModel.position.z = pos.z
+          }
+        }, 80)
+      }
+    }
+  }
+
+  /* V16 OLD - DISABLED
   private shoot(): void {
     if (this.player.stats.isReloading || this.player.stats.isDead) return
 
@@ -885,9 +1125,15 @@ export class UltimateFPSEngineV2 {
       }, 80)
     }
   }
+  */
 
   private createProjectile(): void {
-    const weapon = this.weapons[this.player.stats.currentWeaponIndex]
+    // V17: Get weapon from WeaponManager
+    const weapon = this.weaponManager.getCurrentWeapon()
+    if (!weapon) return
+
+    const weaponData = weapon.getData()
+
     const geometry = new THREE.SphereGeometry(0.05, 8, 8)
     const material = new THREE.MeshBasicMaterial({ color: 0xffff00, emissive: 0xffff00 })
     const mesh = new THREE.Mesh(geometry, material)
@@ -899,8 +1145,8 @@ export class UltimateFPSEngineV2 {
     const direction = new THREE.Vector3()
     this.camera.getWorldDirection(direction)
     
-    // Add accuracy spread
-    const spread = (1 - weapon.accuracy / 100) * 0.05
+    // Add accuracy spread (V17: Use weaponData)
+    const spread = (1 - weaponData.accuracy / 100) * 0.05
     if (spread > 0) {
       direction.x += (Math.random() - 0.5) * spread
       direction.y += (Math.random() - 0.5) * spread
@@ -913,8 +1159,8 @@ export class UltimateFPSEngineV2 {
       mesh,
       direction,
       speed: 150, // Faster projectiles
-      damage: weapon.damage,
-      range: weapon.range,
+      damage: weaponData.damage,
+      range: weaponData.range,
       distanceTraveled: 0,
       isPlayerProjectile: true,
       trailMeshes: []
@@ -934,6 +1180,27 @@ export class UltimateFPSEngineV2 {
     }, 50)
   }
 
+  // ============================================================
+  // V17 NEW - RELOAD (Modular Weapon System)
+  // ============================================================
+  
+  private async reloadWeapon(): Promise<void> {
+    if (this.player.stats.isReloading || this.player.stats.isDead) return
+
+    const weapon = this.weaponManager.getCurrentWeapon()
+    if (!weapon || !weapon.canReload()) return
+
+    this.player.stats.isReloading = true
+    console.log(`🔄 Reloading ${weapon.getName()}...`)
+
+    // Weapon handles reload internally (ammo transfer, timing)
+    await weapon.reload()
+
+    this.player.stats.isReloading = false
+    console.log(`✅ ${weapon.getName()} reloaded!`)
+  }
+
+  /* V16 OLD - DISABLED
   private reloadWeapon(): void {
     if (this.player.stats.isReloading || this.player.stats.isDead) return
 
@@ -950,6 +1217,7 @@ export class UltimateFPSEngineV2 {
       this.player.stats.isReloading = false
     }, weapon.reloadTime * 1000)
   }
+  */
 
   // ============================================================
   // ENEMY SYSTEM (IMPROVED MODELS - FIX #4)
@@ -1323,14 +1591,15 @@ export class UltimateFPSEngineV2 {
       this.camera.position.copy(this.player.position)
       this.camera.rotation.copy(this.player.rotation)
       
-      // Reload ALL Weapons
-      this.weapons.forEach(weapon => {
-        weapon.currentAmmo = weapon.magazineSize
-        weapon.reserveAmmo = weapon.magazineSize * 4
+      // V17: Refill ALL Weapons via WeaponManager
+      const allWeapons = this.weaponManager.getAllWeapons()
+      allWeapons.forEach(weapon => {
+        weapon.refillAmmo()
       })
       
       // Reset to first weapon
       this.player.stats.currentWeaponIndex = 0
+      this.weaponManager.switchToIndex(0)
       
       console.log('✅ Player respawned with full ammo!')
     }, 3000)

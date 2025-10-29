@@ -1,276 +1,197 @@
-# 🎯 Sprint 1: Modulare Architektur - COMPLETE!
+# ✅ SPRINT 1 COMPLETE: Modular Weapon System
 
 **Datum:** 29. Oktober 2025  
-**Duration:** ~3-4h  
-**Status:** ✅ ABGESCHLOSSEN
+**Status:** ✅ COMPLETED  
+**Dauer:** ~10h
 
 ---
 
-## ✅ **Was wurde implementiert:**
+## 🎯 **Ziel erreicht!**
 
-### 1️⃣ **Sprint 1.1: WeaponData Interface + JSON Loader** ✅
-
-**Dateien:**
-- `components/games/fps/ultimate/weapons/data/WeaponData.ts` (282 Zeilen)
-- `components/games/fps/ultimate/weapons/data/WeaponLoader.ts` (139 Zeilen)
-- `public/data/weapons/m4a1.json`
-- `public/data/weapons/awp.json`
-- `public/data/weapons/deagle.json`
-- `public/data/weapons/manifest.json`
-
-**Features:**
-- ✅ Comprehensive `WeaponData` interface (40+ properties)
-- ✅ Enums für `WeaponType` und `FireMode`
-- ✅ JSON-basierte Weapon Blueprints (Data-Driven!)
-- ✅ WeaponLoader mit Caching
-- ✅ Preloading von Manifest
-- ✅ Validation & Default Values
-- ✅ Helper Functions (toVector3, toEuler, getFireDelay)
-
-**Impact:**
-💎 **Neue Waffen können jetzt als JSON-Datei hinzugefügt werden, ohne Code zu ändern!**
+Das **Modular Weapon System** wurde vollständig in den `UltimateFPSEngineV2` integriert. Das System ist:
+- ✅ **Data-Driven** - Waffen werden aus JSON geladen
+- ✅ **Modular** - BaseWeapon + Derived Classes (Rifle, Sniper, Pistol)
+- ✅ **Factory Pattern** - WeaponManager erstellt Waffen
+- ✅ **Sicher** - V16-Code bleibt als Fallback in Kommentaren
 
 ---
 
-### 2️⃣ **Sprint 1.2: BaseWeapon Abstract Class** ✅
+## 📦 **Was wurde implementiert?**
 
-**Dateien:**
-- `components/games/fps/ultimate/weapons/BaseWeapon.ts` (313 Zeilen)
+### **Sprint 1.1: WeaponData Interface + JSON Loader** ✅
+- `WeaponData.ts` - Vollständiges Interface mit 50+ Properties
+- `WeaponLoader.ts` - Singleton Loader für JSON-Dateien
+- `manifest.json` - Liste aller Waffen
+- `m4a1.json`, `awp.json`, `deagle.json` - Weapon Blueprints
 
-**Features:**
-- ✅ Abstract Base Class mit shared logic
-- ✅ `WeaponState` interface (ammo, reload, shots)
-- ✅ `ShootResult` interface
-- ✅ Core methods: `canShoot()`, `consumeAmmo()`, `resetSpray()`
-- ✅ Reload logic: `canReload()`, `transferAmmo()`, `getReloadTime()`
-- ✅ Comprehensive getters/setters
-- ✅ Utility methods: Raycast, logging, ammo management
+### **Sprint 1.2: BaseWeapon Abstract Class** ✅
+- Shared Logic: `canShoot()`, `canReload()`, `consumeAmmo()`
+- State Management: `currentAmmo`, `totalAmmo`, `isReloading`, `consecutiveShots`
+- Getters: `getData()`, `getName()`, `getId()`, `getType()`
+- Utilities: `performRaycast()`, `refillAmmo()`, `addAmmo()`
 
-**Impact:**
-💎 **Alle Waffen teilen sich gemeinsame Logik - keine Code-Duplikation!**
+### **Sprint 1.3: Derived Weapon Classes** ✅
+- `AssaultRifle.ts` - Full-Auto Fire, Spray Control
+- `SniperRifle.ts` - High Damage, Slow Fire Rate
+- `Pistol.ts` - Semi-Auto, High Mobility
 
----
+### **Sprint 1.4: WeaponManager mit Factory Pattern** ✅
+- `addWeapon()` / `addWeapons()` - Async loading
+- `switchWeapon()`, `switchToIndex()`, `switchToNext/Previous()`
+- `quickSwitch()` - Last weapon (Q-key)
+- `onMouseWheel()` - Wheel weapon switching
+- `shoot()`, `reload()` - Delegiert an current weapon
+- Factory Method: `createWeapon()` - Type-based instantiation
 
-### 3️⃣ **Sprint 1.3: Derived Weapon Classes** ✅
+### **Sprint 1.5: Integration in UltimateFPSEngineV2** ✅
 
-**Dateien:**
-- `components/games/fps/ultimate/weapons/types/AssaultRifle.ts` (165 Zeilen)
-- `components/games/fps/ultimate/weapons/types/SniperRifle.ts` (170 Zeilen)
-- `components/games/fps/ultimate/weapons/types/Pistol.ts` (158 Zeilen)
-
-**Features:**
-
-#### **AssaultRifle (M4A1)**
-- ✅ Full-auto shooting
-- ✅ Spray pattern calculation
-- ✅ Damage falloff over distance
-- ✅ Headshot detection (top 20%)
-- ✅ Recoil pattern integration
-
-#### **SniperRifle (AWP)**
-- ✅ Bolt-action mechanism (200ms delay)
-- ✅ Minimal spread (high accuracy)
-- ✅ High damage + headshot bonus
-- ✅ Strict headshot detection (top 15%)
-- ✅ Long range
-
-#### **Pistol (Deagle)**
-- ✅ Semi-auto with first-shot accuracy
-- ✅ Fast reload & switch
-- ✅ Moderate damage falloff
-- ✅ Headshot bonus (2.5x)
-- ✅ Lightweight weapon benefits
-
-**Impact:**
-💎 **Jeder Waffentyp hat unique Mechaniken und Feel!**
-
----
-
-### 4️⃣ **Sprint 1.4: WeaponManager mit Factory Pattern** ✅
-
-**Dateien:**
-- `components/games/fps/ultimate/weapons/WeaponManager.ts` (426 Zeilen)
-- `components/games/fps/ultimate/weapons/index.ts` (17 Zeilen)
-
-**Features:**
-- ✅ Inventory Management (Map + Order)
-- ✅ Factory Pattern für Weapon Creation
-- ✅ Weapon Switching:
-  - By ID
-  - By Index (Number Keys)
-  - Next/Previous (Mouse Wheel)
-  - Quick Switch (Q-Key für Last Weapon)
-- ✅ Weapon Actions: `shoot()`, `reload()`, `update()`
-- ✅ Event System für Weapon Switch Callbacks
-- ✅ Lower/Raise Animations (timing-based)
-- ✅ Scene/Camera reference management
-
-**Impact:**
-💎 **Central Hub für alle Waffen - Clean Architecture!**
-
----
-
-## 📊 **Architektur-Übersicht:**
-
-```
-components/games/fps/ultimate/weapons/
-├── index.ts                     // Central export
-├── BaseWeapon.ts                // Abstract base class
-├── WeaponManager.ts             // Inventory & switching
-├── data/
-│   ├── WeaponData.ts           // Interfaces & types
-│   └── WeaponLoader.ts         // JSON loader
-├── types/
-│   ├── AssaultRifle.ts         // M4A1 implementation
-│   ├── SniperRifle.ts          // AWP implementation
-│   └── Pistol.ts               // Deagle implementation
-
-public/data/weapons/
-├── manifest.json                // Weapon list for preloading
-├── m4a1.json                   // M4A1 blueprint
-├── awp.json                    // AWP blueprint
-└── deagle.json                 // Deagle blueprint
-```
-
----
-
-## 🎯 **Was funktioniert jetzt:**
-
-### **1. Data-Driven Weapons** ✅
+#### **Imports & Initialization**
 ```typescript
-// Neue Waffe hinzufügen = JSON-Datei erstellen!
-{
-  "id": "ak47",
-  "name": "AK-47",
-  "type": "rifle",
-  "damage": 36,
-  "fireRate": 600,
-  // ... 40+ properties
+// Zeile 8-9: Neue Imports
+import { WeaponManager } from '../weapons/WeaponManager'
+import type { BaseWeapon } from '../weapons/BaseWeapon'
+
+// Zeile 146: WeaponManager ersetzt weapons array
+private weaponManager: WeaponManager
+
+// Zeile 279: Constructor Init
+this.weaponManager = new WeaponManager()
+```
+
+#### **Setup in init()**
+```typescript
+// Zeile 351: Setup WeaponManager
+await this.setupWeaponManager()
+```
+
+#### **setupWeaponManager() Method**
+```typescript
+// Zeile 447-474: Neue Methode
+- setScene(scene) / setCamera(camera)
+- await weaponManager.addWeapons(['m4a1', 'awp', 'deagle'])
+- createPlayerHands()
+- await loadCurrentWeaponModel()
+```
+
+#### **loadCurrentWeaponModel() Method**
+```typescript
+// Zeile 479-544: 3D Model Loading
+- Loads GLB from weaponData.modelPath
+- Applies viewmodelPosition, viewmodelScale, viewmodelRotation
+- Caches models (Map<string, THREE.Group>)
+- Fallback to createFallbackWeapon()
+```
+
+#### **shoot() Method**
+```typescript
+// Zeile 984-1035: V17 NEW
+const weapon = this.weaponManager.getCurrentWeapon()
+const result = weapon.shoot(origin, direction)
+
+if (result && result.success) {
+  this.gameState.shotsFired++
+  this.createProjectile()
+  this.createMuzzleFlash()
+  
+  // Recoil from weaponData
+  const weaponData = weapon.getData()
+  this.player.rotation.x += weaponData.recoilVertical * 0.01
+  this.player.rotation.y += weaponData.recoilHorizontal * 0.01
+}
+
+// V16 OLD: In comments (Zeile 1037-1083)
+```
+
+#### **reloadWeapon() Method**
+```typescript
+// Zeile 1137-1151: V17 NEW
+const weapon = this.weaponManager.getCurrentWeapon()
+if (!weapon || !weapon.canReload()) return
+
+this.player.stats.isReloading = true
+await weapon.reload() // Weapon handles internally
+this.player.stats.isReloading = false
+
+// V16 OLD: In comments (Zeile 1153-1170)
+```
+
+#### **switchWeapon() Method**
+```typescript
+// Zeile 786-808: V17 NEW
+const success = await this.weaponManager.switchToIndex(newIndex)
+this.player.stats.currentWeaponIndex = newIndex
+
+if (this.weaponModel) {
+  this.camera.remove(this.weaponModel)
+}
+
+await this.loadCurrentWeaponModel()
+
+// V16 OLD: In comments (Zeile 810-823)
+```
+
+#### **createProjectile() Method**
+```typescript
+// Zeile 1115-1158: V17 UPDATED
+const weapon = this.weaponManager.getCurrentWeapon()
+const weaponData = weapon.getData()
+
+// Uses weaponData.accuracy, weaponData.damage, weaponData.range
+```
+
+#### **updateWeaponAnimation() Method**
+```typescript
+// Zeile 957-978: V17 UPDATED
+const weapon = this.weaponManager.getCurrentWeapon()
+const weaponData = weapon.getData()
+
+if (this.player.stats.isAiming) {
+  // ADS Position from weaponData
+  const adsPos = weaponData.adsPosition
+  this.weaponModel.position.set(adsPos.x, adsPos.y, adsPos.z)
+} else {
+  // Hip Fire Position from weaponData
+  const hipPos = weaponData.viewmodelPosition
+  const hipRot = weaponData.viewmodelRotation || { x: 0, y: -Math.PI / 2, z: 0 }
+  this.weaponModel.position.set(hipPos.x, hipPos.y, hipPos.z)
+  this.weaponModel.rotation.set(hipRot.x, hipRot.y, hipRot.z)
 }
 ```
 
-### **2. Factory Pattern** ✅
+#### **onStatsUpdate (animate loop)**
 ```typescript
-const weaponManager = new WeaponManager()
-await weaponManager.addWeapon('m4a1')  // Auto-creates AssaultRifle
-await weaponManager.addWeapon('awp')   // Auto-creates SniperRifle
-await weaponManager.addWeapon('deagle') // Auto-creates Pistol
+// Zeile 923-946: V17 UPDATED
+const weapon = this.weaponManager.getCurrentWeapon()
+const weaponData = weapon?.getData()
+
+this.onStatsUpdate({
+  ...this.player.stats,
+  ...this.gameState,
+  currentWeapon: weaponData ? {
+    id: weaponData.id,
+    name: weaponData.name,
+    type: weaponData.type,
+    // ... mapped to old format for UI compatibility
+    currentAmmo: weapon!.getCurrentAmmo(),
+    reserveAmmo: weapon!.getTotalAmmo()
+  } : null
+})
 ```
 
-### **3. Weapon Switching** ✅
+#### **handlePlayerDeath() - Respawn Logic**
 ```typescript
-// Number Keys (1-9)
-await weaponManager.switchToIndex(0) // M4A1
+// Zeile 1594-1602: V17 UPDATED
+const allWeapons = this.weaponManager.getAllWeapons()
+allWeapons.forEach(weapon => {
+  weapon.refillAmmo()
+})
 
-// Mouse Wheel
-await weaponManager.onMouseWheel(delta)
-
-// Quick Switch (Q)
-await weaponManager.quickSwitch() // Last weapon
-```
-
-### **4. Weapon-Specific Logic** ✅
-```typescript
-// Each weapon type has unique behavior:
-- AssaultRifle: Full-auto, spray pattern
-- SniperRifle: Bolt-action delay, high damage
-- Pistol: Fast switch, first-shot accuracy
-```
-
----
-
-## 📈 **Metrics:**
-
-| Metric | Value |
-|--------|-------|
-| **Files Created** | 12 |
-| **Lines of Code** | ~1,900 |
-| **Weapons Implemented** | 3 (M4A1, AWP, Deagle) |
-| **Weapon Properties** | 40+ |
-| **Classes Created** | 7 |
-
----
-
-## 🚀 **Next Steps: Sprint 1.5**
-
-### **Integration in UltimateFPSEngineV2:**
-1. ✅ Import WeaponManager
-2. ✅ Replace old weapons array
-3. ✅ Update shoot() method
-4. ✅ Update reload() method
-5. ✅ Update weapon switching
-6. ✅ Update HUD
-
-**Estimate:** 2h
-
----
-
-## 💡 **Vorteile der neuen Architektur:**
-
-### ✅ **Skalierbarkeit**
-- Neue Waffen = 1 JSON-Datei
-- Keine Code-Änderungen nötig
-- Easy balancing
-
-### ✅ **Wartbarkeit**
-- Klare Trennung: Data / Logic / Presentation
-- Factory Pattern für Weapon Creation
-- Single Responsibility Principle
-
-### ✅ **Flexibilität**
-- Weapon-specific behavior in Derived Classes
-- Easy to add new weapon types
-- Composition over Inheritance
-
-### ✅ **Testbarkeit**
-- Unit tests für jede Weapon Class
-- Mock data für Testing
-- Isolated components
-
----
-
-## 🎮 **Usage Example:**
-
-```typescript
-// 1. Create WeaponManager
-const weaponManager = new WeaponManager()
-weaponManager.setScene(scene)
-weaponManager.setCamera(camera)
-
-// 2. Load weapons from manifest
-await WeaponLoader.preloadFromManifest()
-
-// 3. Add weapons to inventory
-await weaponManager.addWeapons(['m4a1', 'awp', 'deagle'])
-
-// 4. Shoot!
-const result = weaponManager.shoot(origin, direction)
-if (result?.success && result.hit) {
-  applyDamage(result.hit.object, result.damage)
-}
-
-// 5. Reload
-await weaponManager.reload()
-
-// 6. Switch weapon (Number key)
-await weaponManager.switchToIndex(1) // AWP
-
-// 7. Quick switch (Q)
-await weaponManager.quickSwitch()
-
-// 8. Update every frame
-weaponManager.update(deltaTime)
+this.player.stats.currentWeaponIndex = 0
+this.weaponManager.switchToIndex(0)
 ```
 
 ---
 
-## 🏆 **Sprint 1: SUCCESS!**
+## 🔒 **Rollback-Sicherheit**
 
-**Status:** ✅ COMPLETE  
-**Quality:** 💎 AAA-STANDARD  
-**Ready for:** Sprint 1.5 (Integration)
-
----
-
-**Nächster Schritt:** Integration in `UltimateFPSEngineV2.tsx` 🔗
-
+Alle V16-Methoden sind aus
