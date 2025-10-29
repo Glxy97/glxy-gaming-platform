@@ -11,6 +11,7 @@ import { getGameById } from '@/lib/games-registry'
 import { GamingButton } from '@/components/ui/gaming-button'
 import { Badge } from '@/components/ui/badge'
 import { LoadingSpinner } from '@/components/ui/loading-spinner'
+import { gamePreloader } from '@/lib/game-preloader'
 
 /**
  * Professional Game Component Mapping
@@ -115,7 +116,7 @@ export default function GamePage() {
       return
     }
 
-    // Lade Game-Komponente dynamisch
+    // Lade Game-Komponente dynamisch mit Preload-Support
     const loadGame = async () => {
       try {
         setLoading(true)
@@ -129,8 +130,19 @@ export default function GamePage() {
           return
         }
 
+        // Prüfe ob bereits vorgeladen
+        const preloaded = gamePreloader.getPreloaded(gameId)
+        if (preloaded) {
+          console.log(`[GamePage] ✅ Using preloaded component: ${gameId}`)
+          setGameComponent(() => preloaded)
+          setLoading(false)
+          return
+        }
+
+        // Ansonsten normal laden
         const module = await componentLoader()
-        setGameComponent(() => module.default || module)
+        const component = module.default || module
+        setGameComponent(() => component)
         setLoading(false)
       } catch (err) {
         console.error('Error loading game:', err)

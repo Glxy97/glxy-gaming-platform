@@ -1,4 +1,7 @@
-// @ts-nocheck
+/**
+ * 🎮 FPS Core Game Engine
+ * ✅ TypeScript-sauber (ohne @ts-nocheck)
+ */
 import * as THREE from 'three';
 import { FPSEnhancedAI } from './fps-enhanced-ai';
 
@@ -319,9 +322,10 @@ export class FPSCore {
     ];
     
     walls.forEach(wall => {
-      const geometry = new THREE.BoxGeometry(wall.size[0], wall.size[1], wall.size[2]);
+      const geometry = new THREE.BoxGeometry(wall.size[0]!, wall.size[1]!, wall.size[2]!);
       const mesh = new THREE.Mesh(geometry, wallMaterial);
-      mesh.position.set((wall.pos[0] ?? 0), (wall.pos[1] ?? 0), (wall.pos[2] ?? 0));
+      // Type-safe: Array-Elemente sind garantiert vorhanden
+      mesh.position.set(wall.pos[0]!, wall.pos[1]!, wall.pos[2]!);
       mesh.castShadow = true;
       mesh.receiveShadow = true;
       mesh.userData.isCollidable = true;
@@ -655,7 +659,8 @@ export class FPSCore {
     
     positions.forEach(pos => {
       const column = new THREE.Mesh(columnGeometry, columnMaterial);
-      column.position.set(((pos[0] ?? 0) ?? 0), ((pos[1] ?? 0) ?? 0), ((pos[2] ?? 0) ?? 0));
+      // Type-safe: Array-Elemente sind garantiert vorhanden
+      column.position.set(pos[0]!, pos[1]!, pos[2]!);
       column.castShadow = true;
       column.receiveShadow = true;
       column.userData.isCollidable = true;

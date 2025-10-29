@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
 import Image from 'next/image'
 import { useSession } from 'next-auth/react'
+import { preloadFeaturedGames } from '@/lib/game-preloader'
 import { 
   ChevronRight,
   Trophy,
@@ -39,6 +40,8 @@ export default function HomePage() {
 
   useEffect(() => {
     setMounted(true)
+    // Preload Featured Games im Hintergrund
+    preloadFeaturedGames()
   }, [])
 
   if (!mounted) {
@@ -212,24 +215,31 @@ export default function HomePage() {
           {/* Statischer Gradient - keine Animation mehr */}
           <div className="absolute inset-0 bg-gradient-to-br from-purple-900/40 via-blue-900/20 to-black/40" />
 
-          {/* NUR 2 Matrix Rain Linien statt 8 */}
+          {/* Matrix Rain Linien - WEITER OPTIMIERT: Nur noch Keyframes statt Framer Motion */}
+          <style jsx>{`
+            @keyframes matrixRain {
+              0% {
+                transform: translateY(-100vh);
+                opacity: 0;
+              }
+              50% {
+                opacity: 0.6;
+              }
+              100% {
+                transform: translateY(100vh);
+                opacity: 0;
+              }
+            }
+          `}</style>
           {mounted && Array.from({ length: 2 }).map((_, i) => (
-            <motion.div
+            <div
               key={`matrix-${i}`}
-              className="absolute w-px bg-gradient-to-b from-transparent via-gaming-primary/60 to-transparent will-change-transform"
+              className="absolute w-px bg-gradient-to-b from-transparent via-gaming-primary/60 to-transparent"
               style={{
                 left: `${(i + 1) * 33}%`,
-                height: "100vh"
-              }}
-              animate={{
-                y: ["-100vh", "100vh"],
-                opacity: [0, 0.6, 0]
-              }}
-              transition={{
-                duration: 6,
-                repeat: Infinity,
-                delay: i * 3,
-                ease: "linear"
+                height: "100vh",
+                animation: `matrixRain 6s linear infinite`,
+                animationDelay: `${i * 3}s`
               }}
             />
           ))}
@@ -259,30 +269,7 @@ export default function HomePage() {
             style={{ animationDuration: '30s' }}
           />
 
-          {/* KEINE Energy Cores mehr - zu performance-intensiv */}
-          {mounted && Array.from({ length: 0 }).map((_, i) => (
-            <motion.div
-              key={`energy-${i}`}
-              className="absolute rounded-full"
-              style={{
-                width: 120 + i * 30,
-                height: 120 + i * 30,
-                left: `${25 + i * 25}%`,
-                top: `${30 + i * 20}%`,
-                background: `radial-gradient(circle, ${i % 2 === 0 ? 'rgba(147, 51, 234, 0.2)' : 'rgba(59, 130, 246, 0.2)'} 0%, transparent 70%)`
-              }}
-              animate={{
-                scale: [0.9, 1.1, 0.9],
-                opacity: [0.2, 0.5, 0.2]
-              }}
-              transition={{
-                duration: 6 + i * 2,
-                repeat: Infinity,
-                delay: i * 2,
-                ease: "easeInOut"
-              }}
-            />
-          ))}
+          {/* Energy Cores ENTFERNT - zu performance-intensiv */}
         </div>
 
         {/* Hero Content */}
@@ -306,40 +293,39 @@ export default function HomePage() {
             >
               GLXY.AT
               
-              {/* Animierte Effekte um das Logo */}
-              <motion.span
+              {/* Logo-Effekte - OPTIMIERT mit CSS statt Framer Motion */}
+              <style jsx>{`
+                @keyframes sparkle {
+                  0%, 100% { transform: rotate(0deg) scale(1); opacity: 0.7; }
+                  50% { transform: rotate(360deg) scale(1.5); opacity: 1; }
+                }
+                @keyframes rocket {
+                  0%, 100% { transform: rotate(0deg) scale(1); opacity: 0.7; }
+                  50% { transform: rotate(-360deg) scale(1.3); opacity: 1; }
+                }
+                @keyframes lightning {
+                  0%, 100% { transform: translate(0, -20px); opacity: 0.5; }
+                  50% { transform: translate(30px, 20px); opacity: 1; }
+                }
+              `}</style>
+              <span
                 className="absolute -top-8 -right-8 text-6xl"
-                animate={{ 
-                  rotate: 360, 
-                  scale: [1, 1.5, 1],
-                  opacity: [0.7, 1, 0.7]
-                }}
-                transition={{ duration: 2, repeat: Infinity }}
+                style={{ animation: 'sparkle 2s infinite' }}
               >
                 ✨
-              </motion.span>
-              <motion.span
+              </span>
+              <span
                 className="absolute -bottom-8 -left-8 text-6xl"
-                animate={{ 
-                  rotate: -360, 
-                  scale: [1, 1.3, 1],
-                  opacity: [0.7, 1, 0.7]
-                }}
-                transition={{ duration: 2.5, repeat: Infinity }}
+                style={{ animation: 'rocket 2.5s infinite' }}
               >
                 🚀
-              </motion.span>
-              <motion.span
+              </span>
+              <span
                 className="absolute top-1/2 -right-12 text-5xl"
-                animate={{ 
-                  y: [-20, 20, -20],
-                  x: [0, 30, 0],
-                  opacity: [0.5, 1, 0.5]
-                }}
-                transition={{ duration: 3, repeat: Infinity }}
+                style={{ animation: 'lightning 3s infinite' }}
               >
                 ⚡
-              </motion.span>
+              </span>
             </motion.h1>
 
             {/* Untertitel */}

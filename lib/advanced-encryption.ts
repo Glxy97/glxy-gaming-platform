@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Advanced Data Protection & Encryption für GLXY Gaming Platform
  * Enterprise-grade Verschlüsselung und Datenschutz

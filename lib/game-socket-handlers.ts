@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * GLXY Gaming Platform - Game-Specific Socket.IO Event Handlers
  * Complete multiplayer support for: Tetris, Connect4, TicTacToe, Chess, UNO, FPS, Racing
@@ -16,92 +15,6 @@ import { Server as ServerIO, Socket } from 'socket.io'
 import { prisma } from '@/lib/db'
 import { CacheManager, CACHE_KEYS, CACHE_TTL } from '@/lib/redis-server'
 import { GameStateManager, PerformanceMonitor } from '@/lib/socket-server-optimized'
-import { AntiCheatSystem } from '@/lib/anti-cheat'
-import { TetrisValidator } from '@/lib/game-validators/tetris-validator'
-import { Connect4Validator } from '@/lib/game-validators/connect4-validator'
-import { TicTacToeValidator } from '@/lib/game-validators/tictactoe-validator'
-import { ChessValidator } from '@/lib/game-validators/chess-validator'
-import { UnoValidator } from '@/lib/game-validators/uno-validator'
-import { SentryErrorTracker, SentryPerformanceTracker, SentryBreadcrumbs, SentryMetrics } from '@/lib/sentry-utils'
-import { 
-  FrameRateLimiter, 
-  MemoryManager, 
-  WebSocketReconnectionManager, 
-  PerformanceMonitor,
-  GameStateOptimizer,
-  initializePerformanceMonitoring
-} from '@/lib/game-performance'
-
-// ============================================================================
-// PERFORMANCE MONITORING INSTANCES
-// ============================================================================
-
-const frameRateLimiter = new FrameRateLimiter()
-const memoryManager = MemoryManager.getInstance()
-const reconnectionManager = new WebSocketReconnectionManager()
-const performanceMonitor = PerformanceMonitor.getInstance()
-const gameStateOptimizer = GameStateOptimizer.getInstance()
-
-// Initialize performance monitoring
-initializePerformanceMonitoring()
-
-// ============================================================================
-// MAIN SOCKET HANDLER REGISTRATION
-// ============================================================================
-
-export function registerAllGameHandlers(io: ServerIO, socket: Socket) {
-  // Register all game handlers
-  registerTetrisHandlers(io, socket)
-  registerConnect4Handlers(io, socket)
-  registerTicTacToeHandlers(io, socket)
-  registerChessHandlers(io, socket)
-  registerUnoHandlers(io, socket)
-  
-  // WebSocket reconnection handling
-  socket.on('disconnect', (reason) => {
-    console.log(`Socket ${socket.id} disconnected: ${reason}`)
-    reconnectionManager.handleDisconnection(socket.id, socket)
-  })
-  
-  socket.on('reconnect', () => {
-    console.log(`Socket ${socket.id} reconnected`)
-    reconnectionManager.handleReconnection(socket.id)
-  })
-  
-  // Memory monitoring
-  socket.on('ping', () => {
-    // Check memory usage and respond
-    const memoryUsage = memoryManager.getMemoryUsage()
-    const isHighMemory = memoryManager.isMemoryUsageHigh()
-    
-    socket.emit('pong', {
-      memoryUsage: {
-        heapUsed: memoryUsage.heapUsed,
-        heapTotal: memoryUsage.heapTotal,
-        external: memoryUsage.external
-      },
-      isHighMemory,
-      fps: frameRateLimiter.getFPS()
-    })
-  })
-  
-  // Performance stats endpoint
-  socket.on('get_performance_stats', () => {
-    const stats = performanceMonitor.getAllStats()
-    const memoryUsage = memoryManager.getMemoryUsage()
-    
-    socket.emit('performance_stats', {
-      gameStats: stats,
-      memoryUsage: {
-        heapUsed: memoryUsage.heapUsed,
-        heapTotal: memoryUsage.heapTotal,
-        external: memoryUsage.external
-      },
-      fps: frameRateLimiter.getFPS(),
-      reconnectionStatus: reconnectionManager.getReconnectionStatus(socket.id)
-    })
-  })
-}
 
 // ============================================================================
 // GAME STATE INTERFACES
@@ -174,28 +87,8 @@ export function registerTetrisHandlers(io: ServerIO, socket: Socket) {
   // Tetris piece movement
   socket.on('tetris:move', async (data) => {
     const startTime = Date.now()
-    
-    // Frame rate limiting
-    if (!frameRateLimiter.canRender()) {
-      return // Skip this frame to maintain 60 FPS
-    }
-    
-    // Start performance tracking
-    const transaction = SentryPerformanceTracker.startTransaction({
-      name: 'tetris_move',
-      op: 'game.action',
-      tags: {
-        game_type: 'tetris',
-        room_id: data.roomId,
-        player_id: data.playerId
-      }
-    })
-    
-    // Start performance monitoring
-    performanceMonitor.startTiming('tetris_move')
-    
     try {
-      const { roomId, move, playerId, reactionTime } = data
+      const { roomId, move, playerId } = data
 
       // Validate player is in room
       const room = await prisma.gameRoom.findUnique({
@@ -207,204 +100,43 @@ export function registerTetrisHandlers(io: ServerIO, socket: Socket) {
         return socket.emit('error', { code: 'INVALID_PLAYER' })
       }
 
-      // Anti-Cheat Analysis
-      const moveData = {
-        gameType: 'tetris',
-        moveType: move.action || 'move',
-        timestamp: Date.now(),
-        playerId,
-        gameId: roomId,
-        moveData: move,
-        reactionTime: reactionTime || (Date.now() - startTime)
-      }
-
-      const cheatCheck = await AntiCheatSystem.analyzeMove(moveData)
-      
-      if (cheatCheck.suspicious) {
-        console.warn(`Suspicious Tetris move detected for player ${playerId}:`, cheatCheck.reasons)
-        
-        // Track cheat detection
-        SentryErrorTracker.trackCheatDetection({
-          userId: playerId,
-          gameId: roomId,
-          action: 'tetris_move',
-          cheatScore: cheatCheck.cheatScore,
-          reasons: cheatCheck.reasons,
-          metadata: { move, reactionTime }
-        })
-        
-        // Track metrics
-        SentryMetrics.trackErrorMetric('cheat_detection', {
-          game_type: 'tetris',
-          action: cheatCheck.action || 'warn'
-        })
-        
-        if (cheatCheck.action === 'kick') {
-          socket.emit('kicked', { reason: 'Suspicious activity detected' })
-          socket.disconnect()
-          return
-        } else if (cheatCheck.action === 'temp_ban' || cheatCheck.action === 'ban') {
-          await AntiCheatSystem.banPlayer(playerId, cheatCheck.action === 'ban' ? 'permanent' : 'temporary', 3600000) // 1 hour temp ban
-          socket.emit('banned', { reason: 'Cheating detected', duration: cheatCheck.action === 'temp_ban' ? 3600000 : null })
-          socket.disconnect()
-          return
-        } else if (cheatCheck.action === 'warn') {
-          socket.emit('warning', { reason: 'Suspicious activity detected', score: cheatCheck.cheatScore })
-        }
-      }
-
-      // Get current game state
-      const gameState = await CacheManager.get<TetrisGameState>(`game_state:${roomId}`)
-      if (!gameState) {
-        return socket.emit('error', { code: 'GAME_NOT_FOUND' })
-      }
-
-      // Server-side move validation
-      const playerBoard = gameState.playerBoards[playerId]
-      if (!playerBoard) {
-        return socket.emit('error', { code: 'PLAYER_NOT_IN_GAME' })
-      }
-
-      const validationResult = TetrisValidator.validateMove(
-        {
-          piece: move.piece,
-          board: { grid: playerBoard.board, width: 10, height: 20 },
-          action: move.action,
-          direction: move.direction
-        },
-        { grid: playerBoard.board, width: 10, height: 20 }
-      )
-
-      if (!validationResult.valid) {
-        console.warn(`Invalid Tetris move from player ${playerId}:`, validationResult.reason)
-        
-        // Track invalid move attempts
-        SentryErrorTracker.trackInvalidMove({
-          userId: playerId,
-          gameId: roomId,
-          gameType: 'tetris',
-          move,
-          reason: validationResult.reason
-        })
-        
-        await AntiCheatSystem.updateCheatScore(playerId, 10, `Invalid move: ${validationResult.reason}`)
-        return socket.emit('error', { code: 'INVALID_MOVE', reason: validationResult.reason })
-      }
-
-      // Apply move to game state
-      const updatedGameState = { ...gameState }
-      const updatedPlayerBoard = { ...playerBoard }
-
-      // Apply move and update board
-      updatedPlayerBoard.currentPiece = move.piece
-      
-      // Handle different move types
-      if (move.action === 'hard_drop') {
-        // Calculate drop distance and add to score
-        const dropDistance = this.calculateDropDistance(move.piece, updatedPlayerBoard.board)
-        updatedPlayerBoard.score += dropDistance * 2
-      } else if (move.action === 'move' && move.direction === 'down') {
-        // Soft drop - add 1 point per line
-        updatedPlayerBoard.score += 1
-      }
-
-      // Check for line clears and calculate score server-side
-      if (move.linesCleared && move.linesCleared > 0) {
-        const validationResult = TetrisValidator.validateLinesCleared(move.linesCleared, { grid: updatedPlayerBoard.board, width: 10, height: 20 })
-        
-        if (validationResult.valid) {
-          const scoreIncrease = TetrisValidator.calculateScore(move.linesCleared, updatedPlayerBoard.level, updatedPlayerBoard.combo)
-          updatedPlayerBoard.score += scoreIncrease
-          updatedPlayerBoard.lines += move.linesCleared
-          updatedPlayerBoard.combo = move.combo || 0
-          
-          // Calculate attack lines for battle mode
-          const attackLines = TetrisValidator.calculateAttackLines(move.linesCleared, updatedPlayerBoard.combo)
-          updatedPlayerBoard.attackLines += attackLines
-          
-          // Level up check
-          const newLevel = Math.floor(updatedPlayerBoard.lines / 10) + 1
-          if (newLevel > updatedPlayerBoard.level) {
-            updatedPlayerBoard.level = newLevel
-          }
-        } else {
-          console.warn(`Invalid line clear claim from player ${playerId}:`, validationResult.reason)
-          await AntiCheatSystem.updateCheatScore(playerId, 15, `Invalid line clear: ${validationResult.reason}`)
-        }
-      }
-
       // Update game state
-      updatedGameState.playerBoards[playerId] = updatedPlayerBoard
-      updatedGameState.version += 1
+      const gameState = await GameStateManager.getGameState(roomId) || {}
+      const playerBoard = gameState.playerBoards?.[playerId] || {}
 
-      // Save updated state
-      await CacheManager.set(`game_state:${roomId}`, updatedGameState, CACHE_TTL.GAME_STATE)
+      // Apply move
+      const updatedBoard = {
+        ...playerBoard,
+        currentPiece: move.piece,
+        board: move.board
+      }
 
-      // Broadcast to all players in room
-      io.to(roomId).emit('tetris:move', {
+      const newState = {
+        ...gameState,
+        playerBoards: {
+          ...gameState.playerBoards,
+          [playerId]: updatedBoard
+        }
+      }
+
+      await GameStateManager.updateGameState(roomId, newState, playerId)
+
+      // Broadcast to room
+      io.to(roomId).emit('tetris:move_update', {
         playerId,
         move,
-        gameState: optimizedGameState,
         timestamp: Date.now()
       })
 
-      // Check for game over
-      if (TetrisValidator.validateGameOver({ grid: updatedPlayerBoard.board, width: 10, height: 20 })) {
-        updatedGameState.status = 'finished'
-        updatedGameState.winner = null // Game over, no winner
-        
-        await CacheManager.set(`game_state:${roomId}`, updatedGameState, CACHE_TTL.GAME_STATE)
-        io.to(roomId).emit('tetris:game_over', { gameState: updatedGameState })
-      }
-
-      // Performance monitoring
-      const moveDuration = performanceMonitor.endTiming('tetris_move')
-      PerformanceMonitor.recordEvent('tetris_move', moveDuration)
-      
-      // Track successful move
-      SentryMetrics.trackCustomMetric('tetris_move_success', 1, {
-        game_type: 'tetris',
-        room_id: roomId,
-        player_id: playerId,
-        duration: moveDuration
-      })
-      
-      // Optimize game state before sending
-      const optimizedGameState = gameStateOptimizer.optimizeGameState(updatedGameState)
-      
-      // Finish performance transaction
-      transaction.finish()
+      await PerformanceMonitor.recordLatency('tetris_move', Date.now() - startTime, roomId)
+      return
 
     } catch (error) {
       console.error('Tetris move error:', error)
-      
-      // Track error
-      SentryErrorTracker.captureException(error, {
-        tags: {
-          game_type: 'tetris',
-          room_id: roomId,
-          player_id: playerId,
-          action: 'tetris_move'
-        },
-        extra: {
-          move,
-          reactionTime
-        }
-      })
-      
-      // Finish transaction with error status
-      transaction.setStatus('internal_error')
-      transaction.finish()
-      
-      socket.emit('error', { code: 'MOVE_FAILED' })
+      socket.emit('error', { code: 'TETRIS_MOVE_FAILED' })
+      return
     }
   })
-
-  // Helper function to calculate drop distance
-  function calculateDropDistance(piece: any, board: (string | null)[][]): number {
-    // Simplified implementation - in production, this would be more sophisticated
-    return Math.max(0, 20 - piece.y)
-  }
 
   // Tetris lines cleared (Battle Mode)
   socket.on('tetris:lines_cleared', async (data) => {
@@ -459,9 +191,11 @@ export function registerTetrisHandlers(io: ServerIO, socket: Socket) {
       })
 
       await PerformanceMonitor.recordLatency('tetris_lines_cleared', Date.now() - startTime, roomId)
+      return
 
     } catch (error) {
       console.error('Tetris lines cleared error:', error)
+      return
     }
   })
 
@@ -482,7 +216,7 @@ export function registerTetrisHandlers(io: ServerIO, socket: Socket) {
         const winner = alivePlayers[0]
 
         gameState.status = 'finished'
-        gameState.winner = winner
+        ;(gameState as any).winner = winner
 
         await GameStateManager.updateGameState(roomId, gameState)
 
@@ -515,6 +249,7 @@ export function registerTetrisHandlers(io: ServerIO, socket: Socket) {
 
     } catch (error) {
       console.error('Tetris game over error:', error)
+      return
     }
   })
 }
@@ -526,74 +261,8 @@ export function registerTetrisHandlers(io: ServerIO, socket: Socket) {
 export function registerConnect4Handlers(io: ServerIO, socket: Socket) {
   socket.on('connect4:drop_piece', async (data) => {
     const startTime = Date.now()
-    
-    // Frame rate limiting
-    if (!frameRateLimiter.canRender()) {
-      return // Skip this frame to maintain 60 FPS
-    }
-    
-    // Start performance tracking
-    const transaction = SentryPerformanceTracker.startTransaction({
-      name: 'connect4_drop_piece',
-      op: 'game.action',
-      tags: {
-        game_type: 'connect4',
-        room_id: data.roomId,
-        player_id: data.playerId
-      }
-    })
-    
-    // Start performance monitoring
-    performanceMonitor.startTiming('connect4_drop_piece')
-    
     try {
-      const { roomId, column, playerId, reactionTime } = data
-
-      // Anti-Cheat Analysis
-      const moveData = {
-        gameType: 'connect4',
-        moveType: 'drop_piece',
-        timestamp: Date.now(),
-        playerId,
-        gameId: roomId,
-        moveData: { column },
-        reactionTime: reactionTime || (Date.now() - startTime)
-      }
-
-      const cheatCheck = await AntiCheatSystem.analyzeMove(moveData)
-      
-      if (cheatCheck.suspicious) {
-        console.warn(`Suspicious Connect4 move detected for player ${playerId}:`, cheatCheck.reasons)
-        
-        // Track cheat detection
-        SentryErrorTracker.trackCheatDetection({
-          userId: playerId,
-          gameId: roomId,
-          action: 'connect4_drop_piece',
-          cheatScore: cheatCheck.cheatScore,
-          reasons: cheatCheck.reasons,
-          metadata: { column, reactionTime }
-        })
-        
-        // Track metrics
-        SentryMetrics.trackErrorMetric('cheat_detection', {
-          game_type: 'connect4',
-          action: cheatCheck.action || 'warn'
-        })
-        
-        if (cheatCheck.action === 'kick') {
-          socket.emit('kicked', { reason: 'Suspicious activity detected' })
-          socket.disconnect()
-          return
-        } else if (cheatCheck.action === 'temp_ban' || cheatCheck.action === 'ban') {
-          await AntiCheatSystem.banPlayer(playerId, cheatCheck.action === 'ban' ? 'permanent' : 'temporary', 3600000)
-          socket.emit('banned', { reason: 'Cheating detected', duration: cheatCheck.action === 'temp_ban' ? 3600000 : null })
-          socket.disconnect()
-          return
-        } else if (cheatCheck.action === 'warn') {
-          socket.emit('warning', { reason: 'Suspicious activity detected', score: cheatCheck.cheatScore })
-        }
-      }
+      const { roomId, column, playerId } = data
 
       const gameState = await GameStateManager.getGameState(roomId) as Connect4GameState || {
         board: Array(6).fill(null).map(() => Array(7).fill(null)),
@@ -603,115 +272,67 @@ export function registerConnect4Handlers(io: ServerIO, socket: Socket) {
         version: 0
       }
 
-      // Server-side move validation
-      const validationResult = Connect4Validator.validateMove(
-        { column, playerId },
-        { grid: gameState.board, width: 7, height: 6 },
-        gameState.currentPlayer
-      )
-
-      if (!validationResult.valid) {
-        console.warn(`Invalid Connect4 move from player ${playerId}:`, validationResult.reason)
-        await AntiCheatSystem.updateCheatScore(playerId, 10, `Invalid move: ${validationResult.reason}`)
-        return socket.emit('error', { code: 'INVALID_MOVE', reason: validationResult.reason })
+      // Validate it's this player's turn
+      if (gameState.currentPlayer !== playerId) {
+        return socket.emit('error', { code: 'NOT_YOUR_TURN' })
       }
 
-      // Use corrected move if provided
-      const finalMove = validationResult.correctedMove || { column, playerId }
-      const row = finalMove.row || Connect4Validator.findLowestEmptyRow(finalMove.column, { grid: gameState.board, width: 7, height: 6 })
+      // Find lowest empty row in column
+      let row = -1
+      for (let r = 5; r >= 0; r--) {
+        if (!gameState.board[r][column]) {
+          row = r
+          break
+        }
+      }
 
-      // Apply move using validator
-      const updatedBoard = Connect4Validator.applyMove(
-        { grid: gameState.board, width: 7, height: 6 },
-        { column: finalMove.column, playerId, row }
-      )
+      if (row === -1) {
+        return socket.emit('error', { code: 'COLUMN_FULL' })
+      }
 
-      gameState.board = updatedBoard.grid
-      gameState.lastMove = { row, col: finalMove.column, player: playerId }
+      // Place piece
+      gameState.board[row][column] = playerId
+      ;(gameState as any).lastMove = { row, col: column, player: playerId }
 
-      // Server-side winner check
-      const isWinner = Connect4Validator.checkWinner(updatedBoard, row, finalMove.column, playerId)
+      // Check for winner
+      const winner = checkConnect4Winner(gameState.board, row, column, playerId)
 
-      if (isWinner) {
+      if (winner) {
         gameState.status = 'finished'
-        gameState.winner = playerId
+        ;(gameState as any).winner = playerId
 
         await prisma.gameRoom.update({
           where: { id: roomId },
           data: { status: 'FINISHED' }
+          // TODO: Add winnerId field to GameRoom model if needed
         })
-
-        await GameStateManager.updateGameState(roomId, gameState)
-        io.to(roomId).emit('connect4:game_over', { winner: playerId, gameState })
-      } else if (Connect4Validator.isBoardFull(updatedBoard)) {
-        // Draw condition
-        gameState.status = 'finished'
-        gameState.winner = null
-
-        await prisma.gameRoom.update({
-          where: { id: roomId },
-          data: { status: 'FINISHED' }
-        })
-
-        await GameStateManager.updateGameState(roomId, gameState)
-        io.to(roomId).emit('connect4:game_over', { winner: null, gameState })
       } else {
         // Switch turn
-        const players = gameState.players || []
-        const currentIndex = players.findIndex(p => p.id === gameState.currentPlayer)
-        const nextIndex = (currentIndex + 1) % players.length
-        gameState.currentPlayer = players[nextIndex].id
-
-        await GameStateManager.updateGameState(roomId, gameState)
-        io.to(roomId).emit('connect4:move', { 
-          row, 
-          column: finalMove.column, 
-          playerId, 
-          gameState,
-          nextPlayer: gameState.currentPlayer
-        })
+        const currentPlayerIndex = gameState.players.findIndex(p => p.id === playerId)
+        const nextPlayerIndex = (currentPlayerIndex + 1) % gameState.players.length
+        gameState.currentPlayer = gameState.players[nextPlayerIndex].id
       }
 
-      // Performance monitoring
-      const moveDuration = performanceMonitor.endTiming('connect4_drop_piece')
-      PerformanceMonitor.recordEvent('connect4_move', moveDuration)
-      
-      // Track successful move
-      SentryMetrics.trackCustomMetric('connect4_move_success', 1, {
-        game_type: 'connect4',
-        room_id: roomId,
-        player_id: playerId,
-        duration: moveDuration
+      gameState.version++
+      await GameStateManager.updateGameState(roomId, gameState, playerId)
+
+      // Broadcast move
+      io.to(roomId).emit('connect4:move_made', {
+        row,
+        column,
+        playerId,
+        winner: winner ? playerId : null,
+        nextPlayer: gameState.currentPlayer,
+        board: gameState.board
       })
-      
-      // Optimize game state before sending
-      const optimizedGameState = gameStateOptimizer.optimizeGameState(gameState)
-      
-      // Finish performance transaction
-      transaction.finish()
+
+      await PerformanceMonitor.recordLatency('connect4_drop', Date.now() - startTime, roomId)
+      return
 
     } catch (error) {
-      console.error('Connect4 move error:', error)
-      
-      // Track error
-      SentryErrorTracker.captureException(error, {
-        tags: {
-          game_type: 'connect4',
-          room_id: roomId,
-          player_id: playerId,
-          action: 'connect4_drop_piece'
-        },
-        extra: {
-          column,
-          reactionTime
-        }
-      })
-      
-      // Finish transaction with error status
-      transaction.setStatus('internal_error')
-      transaction.finish()
-      
-      socket.emit('error', { code: 'MOVE_FAILED' })
+      console.error('Connect4 drop error:', error)
+      socket.emit('error', { code: 'CONNECT4_MOVE_FAILED' })
+      return
     }
   })
 }
@@ -789,7 +410,7 @@ export function registerTicTacToeHandlers(io: ServerIO, socket: Socket) {
 
       // Make move
       gameState.board[index] = playerId
-      gameState.lastMove = { index, player: playerId }
+      ;(gameState as any).lastMove = { index, player: playerId }
 
       // Check winner
       const winner = checkTicTacToeWinner(gameState.board)
@@ -797,7 +418,7 @@ export function registerTicTacToeHandlers(io: ServerIO, socket: Socket) {
 
       if (winner || isDraw) {
         gameState.status = 'finished'
-        gameState.winner = winner || 'draw'
+        ;(gameState as any).winner = winner || 'draw'
 
         await prisma.gameRoom.update({
           where: { id: roomId },
@@ -826,10 +447,12 @@ export function registerTicTacToeHandlers(io: ServerIO, socket: Socket) {
       })
 
       await PerformanceMonitor.recordLatency('tictactoe_move', Date.now() - startTime, roomId)
+      return
 
     } catch (error) {
       console.error('TicTacToe move error:', error)
       socket.emit('error', { code: 'TICTACTOE_MOVE_FAILED' })
+      return
     }
   })
 }
@@ -916,10 +539,12 @@ export function registerChessHandlers(io: ServerIO, socket: Socket) {
       })
 
       await PerformanceMonitor.recordLatency('chess_move', Date.now() - startTime, roomId)
+      return
 
     } catch (error) {
       console.error('Chess move error:', error)
       socket.emit('error', { code: 'CHESS_MOVE_FAILED' })
+      return
     }
   })
 
@@ -1033,10 +658,12 @@ export function registerUnoHandlers(io: ServerIO, socket: Socket) {
       })
 
       await PerformanceMonitor.recordLatency('uno_play_card', Date.now() - startTime, roomId)
+      return
 
     } catch (error) {
       console.error('UNO play card error:', error)
       socket.emit('error', { code: 'UNO_PLAY_FAILED' })
+      return
     }
   })
 

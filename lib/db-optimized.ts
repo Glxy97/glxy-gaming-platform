@@ -1,5 +1,18 @@
-// @ts-nocheck
 import { PrismaClient } from '@prisma/client'
+
+type PrismaQueryEvent = {
+  query: string
+  params: string
+  duration: number
+  timestamp: Date
+  target: string
+}
+
+type PrismaLogEvent = {
+  message: string
+  timestamp: Date
+  target: string
+}
 import fs from 'fs'
 
 /**
@@ -85,59 +98,57 @@ let connectionMetrics = {
 // Create optimized Prisma client
 export const prisma = globalForPrisma.prisma ?? createPrismaClient()
 
-// Setup event listeners for performance monitoring
-if (!globalForPrisma.prisma) {
-  // Query performance monitoring
-  // @ts-expect-error - Prisma event types are complex
-  prisma.$on('query', (e: any) => {
-    connectionMetrics.totalQueries++
+// Setup event listeners for performance monitoring - ONLY at runtime
+// This prevents static generation build errors in admin routes
+if (!globalForPrisma.prisma && typeof window === 'undefined') {
+  // Defer event listener setup to runtime to prevent static generation issues
+  if (process.env.NEXT_PHASE !== 'phase-production-build') {
+    // Query performance monitoring
+    (prisma as any).$on('query', (e: any) => {
+      connectionMetrics.totalQueries++
 
-    if (e.duration > 1000) { // Queries taking more than 1 second
-      connectionMetrics.slowQueries++
+      if (e.duration > 1000) { // Queries taking more than 1 second
+        connectionMetrics.slowQueries++
 
-      if (process.env.NODE_ENV === 'development') {
-        console.warn(`🐌 Slow query detected (${e.duration}ms):`, {
-          query: e.query.substring(0, 100) + '...',
-          params: e.params,
-          duration: e.duration
+        if (process.env.NODE_ENV === 'development') {
+          console.warn(`🐌 Slow query detected (${e.duration}ms):`, {
+            query: e.query.substring(0, 100) + '...',
+            params: e.params,
+            duration: e.duration
+          })
+        }
+      }
+
+      // Log extremely slow queries in production
+      if (e.duration > 5000) {
+        console.error(`🚨 Critical slow query (${e.duration}ms):`, {
+          query: e.query.substring(0, 200),
+          timestamp: new Date().toISOString()
         })
       }
-    }
+    })
 
-    // Log extremely slow queries in production
-    if (e.duration > 5000) {
-      console.error(`🚨 Critical slow query (${e.duration}ms):`, {
-        query: e.query.substring(0, 200),
-        timestamp: new Date().toISOString()
-      })
-    }
-  })
+    // Info level events
+    (prisma as any).$on('info', (e: any) => {
+      if (process.env.NODE_ENV === 'development') {
+        console.log('ℹ️ Prisma Info:', e.message)
+      }
+    })
 
-  // Info level events
-  // @ts-expect-error - Prisma event types are complex
-  prisma.$on('info', (e: any) => {
-    if (process.env.NODE_ENV === 'development') {
-      console.log('ℹ️ Prisma Info:', e.message)
-    }
-  })
+    // Warning level events
+    (prisma as any).$on('warn', (e: any) => {
+      console.warn('⚠️ Prisma Warning:', e.message)
+    })
 
-  // Warning level events
-  // @ts-expect-error - Prisma event types are complex
-  prisma.$on('warn', (e: any) => {
-    console.warn('⚠️ Prisma Warning:', e.message)
-  })
-
-  // Error level events
-  // @ts-expect-error - Prisma event types are complex
-  prisma.$on('error', (e: any) => {
-    connectionMetrics.errorCount++
-    console.error('❌ Prisma Error:', e.message)
-  })
-
-  // Store globally in development to prevent re-initialization
-  if (process.env.NODE_ENV !== 'production') {
-    globalForPrisma.prisma = prisma
+    // Error level events
+    (prisma as any).$on('error', (e: any) => {
+      connectionMetrics.errorCount++
+      console.error('❌ Prisma Error:', e.message)
+    })
   }
+
+  // Store globally to prevent re-initialization
+  globalForPrisma.prisma = prisma
 }
 
 /**

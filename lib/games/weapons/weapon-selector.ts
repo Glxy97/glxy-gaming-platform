@@ -151,7 +151,7 @@ export class WeaponSelector {
   }
 
   getAllSlots(): any[] {
-    const slots: any[] = []
+    const slots = []
     for (const [slotName, weapon] of this.weapons) {
       const weaponDef = weapon.getWeapon()
       const ammoStatus = weapon.getAmmoStatus()
