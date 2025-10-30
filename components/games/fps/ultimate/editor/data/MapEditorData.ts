@@ -31,13 +31,12 @@ import type {
   MapSize,
   TimeOfDay,
   WeatherType,
-  GeometryData,
   SpawnPointData,
   ObjectiveData,
   ZoneData,
-  InteractiveElementData,
-  MaterialType
+  InteractiveElementData
 } from '../../maps/data/MapData'
+import { MaterialType } from '../../maps/data/MapData'
 
 // ============================================================================
 // EDITOR MODES
@@ -451,7 +450,7 @@ export interface ObjectTemplate {
   description: string
   thumbnail?: string
   prefab: {
-    geometry?: Partial<GeometryData>
+    geometry?: Record<string, any>
     interactive?: Partial<InteractiveElementData>
     customData?: Record<string, unknown>
   }

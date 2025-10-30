@@ -35,7 +35,6 @@ import {
   PrestigeData,
   CurrencyType,
   RANKS,
-  LEVELS,
   PRESTIGE_LEVELS,
   XP_REWARDS,
   calculateLevelXP,
@@ -318,7 +317,7 @@ export class ProgressionManager {
   }
 
   // Auto-save
-  private autoSaveInterval?: NodeJS.Timeout
+  private autoSaveInterval?: number
 
   /**
    * Constructor
@@ -342,7 +341,26 @@ export class ProgressionManager {
 
     // Initialize profile
     this.profile = profile
-    this.levels = LEVELS
+    // Generate levels dynamically (1-100)
+    let cumulativeXP = 0
+    this.levels = Array.from({ length: 100 }, (_, i) => {
+      const level = i + 1
+      const xpRequired = calculateLevelXP(level)
+      const totalXP = cumulativeXP
+      cumulativeXP += xpRequired
+      const rank = getRankByLevel(level)
+
+      return {
+        level,
+        xpRequired,
+        totalXP,
+        rankId: rank.id,
+        rewards: {
+          credits: level * 100,
+          unlocks: []
+        }
+      }
+    })
 
     // Initialize achievements if not already set
     if (this.profile.achievements.size === 0) {
@@ -1019,8 +1037,8 @@ export class ProgressionManager {
     }
 
     // Award prestige rewards
-    this.profile.unlockedTitles.add(prestigeData.rewards.title)
-    this.profile.unlockedCosmetics.add(prestigeData.rewards.cosmeticItem)
+    // this.profile.unlockedTitles.add(prestigeData.rewards.title) // TODO: Add title system
+    this.unlockItem('cosmetic', prestigeData.rewards.cosmeticItem)
     this.awardCredits(prestigeData.rewards.credits, 'prestige')
 
     // Reset level

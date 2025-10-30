@@ -497,8 +497,8 @@ export function createReverbEffect(preset: ReverbPreset = ReverbPreset.MEDIUM_RO
     type: AudioEffectType.REVERB,
     enabled: true,
     wetDryMix: 0.3,
+    preset,
     parameters: {
-      preset,
       decay: params.decay,
       wetLevel: params.wetLevel,
       dryLevel: 0,
