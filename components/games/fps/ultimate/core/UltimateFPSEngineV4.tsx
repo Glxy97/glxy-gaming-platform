@@ -181,6 +181,10 @@ import { InputManager } from './InputManager'
 // 🗺️ MAP SETUP MANAGER (REFACTORED)
 import { MapSetupManager } from './MapSetupManager'
 
+// 🔄 UPDATE LOOP MANAGER (REFACTORED)
+import { UpdateLoopManager } from './UpdateLoopManager'
+import type { UltimateEnemy } from './UpdateLoopManager'
+
 /**
  * 🎮 GLXY ULTIMATE FPS ENGINE V4
  *
@@ -474,6 +478,9 @@ export class UltimateFPSEngineV4 {
 
   // 🗺️ MAP SETUP MANAGER (REFACTORED)
   private mapSetupManager!: MapSetupManager
+
+  // 🔄 UPDATE LOOP MANAGER (REFACTORED)
+  private updateLoopManager!: UpdateLoopManager
 
   private uiRenderCallback?: (state: GameState, data: any) => void
 
@@ -833,6 +840,60 @@ export class UltimateFPSEngineV4 {
     // Initialize all event listeners through orchestrator
     this.eventOrchestrator.initializeAllEvents()
     console.log('✅ Event Orchestrator initialized with all events')
+
+    // 🔄 REFACTORED: Initialize Update Loop Manager (manages entire game loop)
+    console.log('🔄 Initializing Update Loop Manager...')
+    this.updateLoopManager = new UpdateLoopManager({
+      clock: this.clock,
+      camera: this.camera,
+      scene: this.scene,
+      renderer: this.renderer,
+      gameState: this.gameState,
+      player: this.player,
+      enemies: this.enemies,
+      selectedCharacter: this.selectedCharacter,
+      modelManager: this.modelManager,
+      inputManager: this.inputManager,
+      spatialGrid: this.spatialGrid,
+      boundingBoxSystem: this.boundingBoxSystem,
+      physicsEngine: this.physicsEngine,
+      effectsManager: this.effectsManager,
+      abilitySystem: this.abilitySystem,
+      enemyAIManager: this.enemyAIManager,
+      hitMarkerSystem: this.hitMarkerSystem,
+      damageIndicatorSystem: this.damageIndicatorSystem,
+      dynamicCrosshair: this.dynamicCrosshair,
+      killStreakDisplay: this.killStreakDisplay,
+      lowHealthVignette: this.lowHealthVignette,
+      recoilManager: this.recoilManager,
+      hitboxManager: this.hitboxManager,
+      advancedVisualFeedback: this.advancedVisualFeedback,
+      fpsGameModeManager: this.fpsGameModeManager,
+      mapInteractionManager: this.mapInteractionManager,
+      killFeedManager: this.killFeedManager,
+      grenadeSystem: this.grenadeSystem,
+      fireDamageManager: this.fireDamageManager,
+      sprintFOV: this.sprintFOV,
+      scopeSystem: this.scopeSystem,
+      landingShake: this.landingShake,
+      movementController: this.movementController,
+      footstepManager: this.footstepManager,
+      movementFeelManager: this.movementFeelManager,
+      audioManager: this.audioManager,
+      overlayCanvas: this.overlayCanvas,
+      onEnemyDeath: (enemy) => this.handleEnemyDeath(enemy),
+      onUpdateHUD: () => this.updateHUD(),
+      abilityHUDRenderer: this.abilityHUDRenderer,
+      minimapRenderer: this.minimapRenderer,
+      ammoHUDRenderer: this.ammoHUDRenderer,
+      ammoSystem: this.ammoSystem,
+      grenadeHUDRenderer: this.grenadeHUDRenderer,
+      currentGrenadeType: this.currentGrenadeType,
+      scopeOverlayRenderer: this.scopeOverlayRenderer,
+      showScoreboard: this.showScoreboard,
+      scoreboardManager: this.scoreboardManager
+    })
+    console.log('✅ Update Loop Manager initialized')
 
     // ✅ KRITISCH: Render-Schleife starten (verhindert schwarzen Bildschirm!)
     this.start()
@@ -2955,262 +3016,7 @@ export class UltimateFPSEngineV4 {
    */
   public update = (): void => {
     this.animationFrameId = requestAnimationFrame(this.update)
-
-    // ✅ KRITISCH: Rendering IMMER (auch wenn pausiert)
-    // Game-Updates nur wenn aktiv
-    if (this.gameState.isGameActive && !this.gameState.isPaused) {
-      const deltaTime = Math.min(this.clock.getDelta(), 0.1) // Clamp to prevent physics explosion
-      this.gameState.roundTime += deltaTime
-
-      // Animation Mixers Update (nur für sichtbare Models)
-      this.modelManager.updateAnimationMixers(deltaTime, this.camera)
-
-      // Update player movement via InputManager
-      this.inputManager.updatePlayerMovement(deltaTime)
-
-      // PERFORMANCE: Spatial Grid für Player-Updates
-      this.spatialGrid.update({
-        id: 'player',
-        position: this.player.position,
-        radius: 1.5,
-        type: 'player',
-        data: this.player
-      })
-      
-      // Bounding Box Update für Player
-      this.boundingBoxSystem.updateBox('player', this.player.mesh)
-
-      // Update physics
-      this.physicsEngine.update(deltaTime)
-
-      // Update effects
-      this.effectsManager.update(deltaTime)
-
-      // ⚡ NEW: Update Ability System with Game State
-      if (this.abilitySystem) {
-        this.abilitySystem.setGameState(
-          this.player.mesh,
-          {
-            current: this.player.stats.health,
-            max: this.player.stats.maxHealth,
-            armor: this.player.stats.armor
-          },
-          this.enemies.map(e => ({
-            mesh: e.mesh,
-            health: e.health,
-            id: e.id
-          }))
-        )
-      }
-      
-      // 🆕 NEW: Update Character Ability System
-      this.abilitySystem.update(deltaTime)
-      
-      // 🆕 NEW: Charge Ultimate over time (if character has passive charge)
-      if (this.selectedCharacter.abilities.ultimate.chargeOverTime > 0) {
-        this.abilitySystem.chargeUltimate(deltaTime, 'time')
-      }
-
-      // 🤖 REFACTORED: Update enemies via EnemyAIManager
-      this.enemyAIManager.update(deltaTime)
-      // Note: Also updates health bars
-      
-      // ✅ NEU: Update & Render Hit Markers & Damage Indicators
-      this.hitMarkerSystem.update(deltaTime)
-      this.damageIndicatorSystem.update(deltaTime)
-      
-      // 💡 NEW: Update Quick Features
-      this.dynamicCrosshair.update(deltaTime)
-      this.killStreakDisplay.update(deltaTime)
-      this.lowHealthVignette.update(this.player.stats.health / this.player.stats.maxHealth, deltaTime)
-      
-      // 🎯 NEW: Update Recoil System (Recovery)
-      this.recoilManager.update(deltaTime)
-      
-      // 🎯 NEW: Update Hitbox System
-      this.hitboxManager.update()
-      
-      // 🎨 NEW: Update Advanced Visual Feedback
-      this.advancedVisualFeedback.update(deltaTime)
-      
-      // 🎮 NEW: Update Game Mode
-      this.fpsGameModeManager.update(deltaTime)
-      
-      // 🗺️ NEW: Update Map Interactions
-      this.mapInteractionManager.update(deltaTime)
-      
-      // 📋 NEW: Update Kill Feed
-      this.killFeedManager.update()
-      
-      // 💣 NEW: Update Grenades
-      this.grenadeSystem.update(deltaTime)
-      
-      // 💥 NEW: Update Fire Damage
-      this.fireDamageManager.update((entityId, damage) => {
-        const enemy = this.enemies.find(e => e.id === entityId)
-        if (enemy && enemy.health > 0) {
-          enemy.health = Math.max(0, enemy.health - damage)
-          
-          // Update health bar
-          if (enemy.healthBar) {
-            updateHealthBar(enemy.healthBar, enemy.health, enemy.maxHealth)
-          }
-          
-          // Check if killed by fire
-          if (enemy.health <= 0) {
-            this.handleEnemyDeath(enemy)
-          }
-        }
-      })
-      
-      // 💡 NEW: Sprint FOV
-      let newFOV = this.sprintFOV.update(deltaTime)
-      
-      // 🔭 NEW: Scope FOV (overrides sprint FOV if scoped)
-      const scopeFOV = this.scopeSystem.update(deltaTime)
-      if (this.scopeSystem.getIsScoped()) {
-        newFOV = scopeFOV
-      }
-      
-      if (this.camera.fov !== newFOV) {
-        this.camera.fov = newFOV
-        this.camera.updateProjectionMatrix()
-      }
-      
-      // 💡 NEW: Landing Shake
-      this.landingShake.update(deltaTime)
-      const isGrounded = this.movementController.isGrounded
-      if (isGrounded && !this.lastGroundedState) {
-        // Just landed
-        const velocity = this.movementController.velocity
-        this.landingShake.trigger(velocity.y)
-        
-        // 👣 NEW: Landing Sound
-        if (this.scene && this.scene.children && Array.isArray(this.scene.children) && this.scene.children.length > 0) {
-          const surface = this.footstepManager.detectSurface(this.player.position, this.scene)
-          this.footstepManager.playLand(surface, this.player.position, Math.min(Math.abs(velocity.y) / 10, 1))
-        }
-      }
-      this.lastGroundedState = isGrounded
-      
-      // Apply landing shake to camera
-      if (this.landingShake.isShaking()) {
-        const shakeOffset = this.landingShake.getShakeOffset()
-        this.camera.rotation.x += shakeOffset.y
-        this.camera.rotation.y += shakeOffset.x
-      }
-      
-      // 🏃 NEW: Apply Camera Bob
-      const cameraBobOffset = this.movementFeelManager.getCameraBobOffset()
-      const originalCameraY = this.camera.position.y
-      this.camera.position.y += cameraBobOffset.y
-      this.camera.position.x += cameraBobOffset.x
-      
-      // Render Overlay (Hit Markers & Damage Indicators + Quick Features)
-      const ctx = this.overlayCanvas.getContext('2d')
-      if (ctx) {
-        ctx.clearRect(0, 0, this.overlayCanvas.width, this.overlayCanvas.height)
-        
-        // Hit Markers & Damage Indicators
-        this.hitMarkerSystem.render()
-        this.damageIndicatorSystem.render()
-        
-        // 💡 NEW: Render Quick Features
-        const centerX = this.overlayCanvas.width / 2
-        const centerY = this.overlayCanvas.height / 2
-        
-        // Dynamic Crosshair
-        this.dynamicCrosshair.render(ctx, centerX, centerY)
-        
-        // Kill Streak Display
-        this.killStreakDisplay.render(ctx, centerX, centerY)
-        
-        // Low HP Vignette
-        this.lowHealthVignette.render(ctx, this.overlayCanvas.width, this.overlayCanvas.height)
-        
-        // 🎨 NEW: Render Advanced Visual Feedback (Screen Flash, Damage Numbers)
-        this.advancedVisualFeedback.render(ctx, this.overlayCanvas.width, this.overlayCanvas.height)
-        
-        // ⚡ NEW: Render Ability HUD
-        const abilityHUDData: AbilityHUDData = {
-          activeName: this.selectedCharacter.abilities.active.name,
-          activeCooldown: this.abilitySystem.getActiveAbilityState()?.cooldownRemaining || 0,
-          activeMaxCooldown: this.selectedCharacter.abilities.active.cooldown,
-          activeCharges: this.abilitySystem.getActiveAbilityState()?.chargesRemaining || 1,
-          activeKey: 'E',
-          ultimateName: this.selectedCharacter.abilities.ultimate.name,
-          ultimateCharge: (this.abilitySystem.getUltimateAbilityState()?.charge || 0) / this.selectedCharacter.abilities.ultimate.chargeRequired * 100,
-          ultimateKey: 'Q',
-          ultimateReady: this.abilitySystem.getUltimateAbilityState()?.isReady || false
-        }
-        this.abilityHUDRenderer.render(ctx, abilityHUDData)
-        
-        // ⚡ NEW: Render Minimap
-        const minimapData: MinimapData = {
-          playerPosition: this.player.position,
-          playerRotation: this.camera.rotation.y,
-          enemies: this.enemies.map(e => ({
-            position: e.mesh.position,
-            distance: e.mesh.position.distanceTo(this.player.position)
-          })),
-          mapSize: { width: 200, height: 200 }
-        }
-        this.minimapRenderer.render(ctx, minimapData)
-        
-        // 📋 NEW: Render Kill Feed
-        this.killFeedManager.render(ctx, this.overlayCanvas.width, this.overlayCanvas.height)
-        
-        // 💥 NEW: Render Ammo Type HUD (bottom-left)
-        const ammoState = this.ammoSystem.getState()
-        this.ammoHUDRenderer.render(ctx, ammoState, 20, this.overlayCanvas.height - 100)
-        
-        // 💣 NEW: Render Grenade HUD (bottom-left, below ammo)
-        const grenadeState: GrenadeHUDState = {
-          currentType: this.currentGrenadeType,
-          inventory: this.grenadeSystem.getInventory()
-        }
-        this.grenadeHUDRenderer.render(ctx, grenadeState, 20, this.overlayCanvas.height - 240)
-        
-        // 🔭 NEW: Render Scope Overlay (if scoped with overlay)
-        if (this.scopeSystem.hasOverlay()) {
-          this.scopeOverlayRenderer.render(
-            ctx,
-            this.overlayCanvas.width,
-            this.overlayCanvas.height,
-            this.scopeSystem.getZoomLevel()
-          )
-        }
-        
-        // 📊 NEW: Render Scoreboard (if shown)
-        if (this.showScoreboard) {
-          this.scoreboardManager.render(ctx, this.overlayCanvas.width, this.overlayCanvas.height)
-        }
-      }
-
-      // Update audio listener position
-      this.audioManager?.updateListener(
-        this.camera.position,
-        this.camera.getWorldDirection(new THREE.Vector3()),
-        new THREE.Vector3(0, 1, 0)
-      )
-
-      // 🤖 REFACTORED: Auto-spawn enemies via EnemyAIManager
-      this.enemyAIManager.autoSpawn()
-
-      // Update HUD
-      this.updateHUD()
-    } else {
-      // Auch wenn pausiert: Hit Markers & Damage Indicators rendern
-      const ctx = this.overlayCanvas.getContext('2d')
-      if (ctx) {
-        ctx.clearRect(0, 0, this.overlayCanvas.width, this.overlayCanvas.height)
-        this.hitMarkerSystem.render()
-        this.damageIndicatorSystem.render()
-      }
-    }
-
-    // ✅ KRITISCH: Rendering IMMER (auch wenn pausiert)
-    this.renderer.render(this.scene, this.camera)
+    this.updateLoopManager.update()
   }
 
   /**
