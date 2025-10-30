@@ -264,8 +264,8 @@ export interface AudioEffect {
  */
 export interface ReverbEffect extends AudioEffect {
   type: AudioEffectType.REVERB
+  preset: ReverbPreset
   parameters: {
-    preset: ReverbPreset
     decay: number // 0.1-20 seconds
     wetLevel: number // -96 to 0 dB
     dryLevel: number // -96 to 0 dB
@@ -303,7 +303,7 @@ export interface MusicTrackData {
     start: number
     end: number
   }
-  loop?: {
+  loopPoints?: {
     start: number
     end: number
   }

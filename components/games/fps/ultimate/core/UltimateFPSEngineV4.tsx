@@ -20,6 +20,7 @@ import { EffectsManager } from '../effects/EffectsManager'
 
 // 🎯 PHASE 7: Progression System
 import { ProgressionManager, ProgressionEventType, createPlayerProfile } from '../progression/ProgressionManager'
+import { XPSource } from '../progression/data/ProgressionData'
 
 // 🗺️ PHASE 8: Map System
 import { MapManager } from '../maps/MapManager'
@@ -476,7 +477,7 @@ export class UltimateFPSEngineV4 {
       console.log(`🎯 Objective Captured: ${event.data.objectiveId}`)
 
       // Award XP
-      this.progressionManager?.awardXP('objective', 300)
+      this.progressionManager?.awardXP(XPSource.OBJECTIVE, 300)
 
       // Play capture sound
       this.audioManager?.playSound('objective_captured', this.player.position)
@@ -494,9 +495,9 @@ export class UltimateFPSEngineV4 {
    * 🔊 Setup Audio System Events
    */
   private setupAudioEvents(): void {
-    // Quality Changed
-    this.audioManager.on(AudioEventType.QUALITY_CHANGED as any, (event) => {
-      console.log(`🔊 Audio Quality: ${event.data.quality}`)
+    // Settings Changed
+    this.audioManager.on(AudioEventType.SETTINGS_CHANGED, (event) => {
+      console.log(`🔊 Audio Settings Changed`)
     })
 
     // Load all sounds
@@ -1012,18 +1013,18 @@ export class UltimateFPSEngineV4 {
 
         if (killed) {
           // Award XP for kill
-          this.progressionManager?.addXP('kill', 100)
+          this.progressionManager?.awardXP(XPSource.KILL, 100)
 
           // Check for headshot
           if (intersects[0].point.y > enemy.mesh.position.y + 1.5) {
             this.gameState.headshots++
-            this.progressionManager?.addXP('headshot', 50) // Bonus XP
+            this.progressionManager?.awardXP(XPSource.HEADSHOT_KILL, 50) // Bonus XP
 
-            this.uiManager?.showNotification({
-              type: 'headshot',
-              message: 'HEADSHOT!',
-              duration: 1500
-            })
+            this.uiManager?.showNotification(
+              createNotificationTemplate(NotificationType.HEADSHOT, 'HEADSHOT!', {
+                duration: 1.5
+              })
+            )
           }
 
           // Update streak
@@ -1034,7 +1035,7 @@ export class UltimateFPSEngineV4 {
 
           // Check for killstreak achievements
           if (this.gameState.currentStreak >= 5) {
-            this.progressionManager?.addXP('killstreak', 200)
+            this.progressionManager?.awardXP(XPSource.STREAK, 200)
             this.audioManager?.playSound('killstreak_5')
           }
         }
