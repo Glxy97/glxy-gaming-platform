@@ -66,7 +66,7 @@ jobs:
       - name: Install Dependencies (Optimized)
         run: |
           # Nutze npm ci mit optimierten Flags für Cloud Builds
-          npm ci --prefer-offline --no-audit --no-fund --ignore-scripts --legacy-peer-deps
+          npm ci --prefer-offline --no-audit --no-fund --ignore-scripts --legacy-peer-deps --no-optional
 
           # Generate Prisma Client mit Cache
           npx prisma generate
@@ -235,7 +235,7 @@ jobs:
           echo "📊 Starting performance benchmark..."
 
           # Install dependencies
-          npm ci --prefer-offline --legacy-peer-deps
+          npm ci --prefer-offline --legacy-peer-deps --no-optional
           npx prisma generate
 
           # Benchmark Build
