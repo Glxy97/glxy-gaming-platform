@@ -166,6 +166,9 @@ import { WEAPON_CATALOG, getWeaponById as getCatalogWeaponById } from '../weapon
 // 🔊 SOUND LIBRARY
 import { SOUND_LIBRARY, getWeaponSound } from '../audio/SoundLibrary'
 
+// 🎯 EVENT ORCHESTRATOR (REFACTORED)
+import { EventOrchestrator } from './EventOrchestrator'
+
 /**
  * 🎮 GLXY ULTIMATE FPS ENGINE V4
  *
@@ -442,7 +445,10 @@ export class UltimateFPSEngineV4 {
   private grenadeSystem!: GrenadeSystem
   private currentGrenadeType: GrenadeType = GrenadeType.FRAG
   private grenadeHUDRenderer!: GrenadeHUDRenderer
-  
+
+  // 🎯 EVENT ORCHESTRATOR (REFACTORED)
+  private eventOrchestrator!: EventOrchestrator
+
   private uiRenderCallback?: (state: GameState, data: any) => void
 
   // Animation
@@ -587,8 +593,8 @@ export class UltimateFPSEngineV4 {
     // 🎯 PHASE 11: Initialize ALL New Systems!
     this.initializePhase7to10Systems(enableMultiplayer)
 
-    // BESTE Variante: Setup WeaponManager Event-System (aus V6)
-    this.setupWeaponManagerEvents()
+    // REFACTORED: Event setup now handled by EventOrchestrator
+    // this.setupWeaponManagerEvents() // REMOVED - now in EventOrchestrator
 
     // ✅ NEU: Initialize Addiction Systems
     this.killRewardSystem = new KillRewardSystem()
@@ -631,7 +637,7 @@ export class UltimateFPSEngineV4 {
 
     // 🎮 Initialize Game Mode Manager
     this.fpsGameModeManager = new FPSGameModeManager(FPSGameMode.FREE_FOR_ALL)
-    this.setupGameModeEvents()
+    // this.setupGameModeEvents() // REMOVED - now in EventOrchestrator
     this.fpsGameModeManager.start() // Start game mode
     console.log('✅ Game Mode Manager initialized and started')
 
@@ -675,6 +681,47 @@ export class UltimateFPSEngineV4 {
     this.setupPlayer().catch(err => console.error('Setup player error:', err))
     this.setupEventListeners()
 
+    // 🎯 REFACTORED: Initialize Event Orchestrator (replaces all individual event setups)
+    console.log('🎯 Initializing Event Orchestrator...')
+    this.eventOrchestrator = new EventOrchestrator({
+      weaponManager: this.weaponManager,
+      progressionManager: this.progressionManager,
+      mapManager: this.mapManager,
+      audioManager: this.audioManager,
+      uiManager: this.uiManager,
+      networkManager: this.networkManager,
+      abilitySystem: this.abilitySystem,
+      weaponProgressionManager: this.weaponProgressionManager,
+      fpsGameModeManager: this.fpsGameModeManager,
+      gameFlowManager: this.gameFlowManager,
+      effectsManager: this.effectsManager,
+      visualEffectsManager: this.visualEffectsManager,
+      recoilManager: this.recoilManager,
+      dynamicCrosshair: this.dynamicCrosshair,
+      player: this.player,
+      gameState: this.gameState,
+      enemies: this.enemies,
+      camera: this.camera,
+      ground: this.ground,
+      obstacles: this.obstacles,
+      weaponModel: this.weaponModel,
+      selectedCharacter: this.selectedCharacter,
+      reserveAmmo: this.reserveAmmo,
+      onEnemyDeath: (enemy) => this.handleEnemyDeath(enemy),
+      onKill: (data) => this.handleKill(data),
+      onEnvironmentHit: (intersection) => this.handleEnvironmentHit(intersection),
+      onBulletHit: (event) => this.handleBulletHit(event),
+      onUpdateHUD: () => this.updateHUD(),
+      onUpdateScoreboard: () => this.updateScoreboard(),
+      onCreateWeaponModel: () => this.createWeaponModel(),
+      onNetworkStateUpdate: (data) => this.handleNetworkStateUpdate(data),
+      onSetupMapInScene: (mapData) => this.setupMapInScene(mapData),
+      onSetSelectedCharacter: (character) => { this.selectedCharacter = character }
+    })
+    // Initialize all event listeners through orchestrator
+    this.eventOrchestrator.initializeAllEvents()
+    console.log('✅ Event Orchestrator initialized with all events')
+
     // ✅ KRITISCH: Render-Schleife starten (verhindert schwarzen Bildschirm!)
     this.start()
 
@@ -691,14 +738,14 @@ export class UltimateFPSEngineV4 {
       // 🎮 GAME FLOW MANAGER (Must be first!)
       console.log('🎮 Initializing Game Flow Manager...')
       this.gameFlowManager = new GameFlowManager()
-      this.setupGameFlowEvents()
+      // this.setupGameFlowEvents() // REMOVED - now in EventOrchestrator
       console.log('✅ Game Flow Manager Ready')
 
       // 🏆 PHASE 7: Progression Manager
       console.log('🏆 Initializing Progression System...')
       const playerProfile = createPlayerProfile('player-1', 'Player')
       this.progressionManager = new ProgressionManager(playerProfile)
-      this.setupProgressionEvents()
+      // this.setupProgressionEvents() // REMOVED - now in EventOrchestrator
       console.log('✅ Progression System Ready')
 
       // 🗺️ PHASE 8: Map System
@@ -706,7 +753,7 @@ export class UltimateFPSEngineV4 {
       this.mapLoader = new MapLoader()
       this.mapManager = new MapManager()
       this.glbMapLoader = new GLBMapsLoader()
-      this.setupMapEvents()
+      // this.setupMapEvents() // REMOVED - now in EventOrchestrator
       console.log('✅ Map System Ready (with GLB support!)')
 
       // 🔊 PHASE 9: Audio System
@@ -716,7 +763,7 @@ export class UltimateFPSEngineV4 {
         musicVolume: 0.5,
         sfxVolume: 0.8
       })
-      this.setupAudioEvents()
+      // this.setupAudioEvents() // REMOVED - now in EventOrchestrator
       console.log('✅ Audio System Ready')
       
       // 🎵 Connect Hit Sound Manager to Audio Manager
@@ -733,7 +780,7 @@ export class UltimateFPSEngineV4 {
         theme: 'glxy',
         layout: 'default'
       })
-      this.setupUIEvents()
+      // this.setupUIEvents() // REMOVED - now in EventOrchestrator
       console.log('✅ UI System Ready')
 
       // 🌐 PHASE 10: Network Manager (Optional)
@@ -745,7 +792,7 @@ export class UltimateFPSEngineV4 {
           clientSidePrediction: true,
           lagCompensationEnabled: true
         })
-        this.setupNetworkEvents()
+        // this.setupNetworkEvents() // REMOVED - now in EventOrchestrator
         console.log('✅ Network System Ready')
       }
 
@@ -761,22 +808,22 @@ export class UltimateFPSEngineV4 {
       
       // Weapon Progression Manager
       this.weaponProgressionManager = new WeaponProgressionManager()
-      this.setupWeaponProgressionEvents()
-      
+      // this.setupWeaponProgressionEvents() // REMOVED - now in EventOrchestrator
+
       // Behavior Tree Manager
       this.behaviorTreeManager = new BehaviorTreeManager()
-      
+
       // 🧭 NEW: Pathfinding Manager
       this.pathfindingManager = new PathfindingManager()
       console.log('✅ Pathfinding Manager initialized (waiting for map)')
-      
+
       // Select Starter Character
       this.selectedCharacter = STARTER_CHARACTERS[0] // Tactical Operator
       this.abilitySystem.setCharacter(this.selectedCharacter)
       this.abilitySystem.applyPassiveAbility()
-      
+
       // ⚡ NEW: Setup Ability Callbacks
-      this.setupAbilityCallbacks()
+      // this.setupAbilityCallbacks() // REMOVED - now in EventOrchestrator
       
       console.log(`✅ Character Selected: ${this.selectedCharacter.name}`)
       console.log(`✅ NEW FEATURES Initialized: Character System, Weapon Progression, Advanced AI!`)
