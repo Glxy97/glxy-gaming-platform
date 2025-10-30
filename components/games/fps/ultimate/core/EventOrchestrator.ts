@@ -5,7 +5,8 @@ import * as THREE from 'three'
 
 // Manager Imports
 import { WeaponManager } from '../weapons/WeaponManager'
-import { ProgressionManager, ProgressionEventType, XPSource } from '../progression/ProgressionManager'
+import { ProgressionManager, ProgressionEventType } from '../progression/ProgressionManager'
+import { XPSource } from '../progression/data/ProgressionData'
 import { MapManager, MapEventType } from '../maps/MapManager'
 import { AudioManager, AudioEventType } from '../audio/AudioManager'
 import { UIManager, UIEventType } from '../ui/UIManager'
