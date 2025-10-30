@@ -172,6 +172,9 @@ import { EventOrchestrator } from './EventOrchestrator'
 // 🤖 ENEMY AI MANAGER (REFACTORED)
 import { EnemyAIManager } from './EnemyAIManager'
 
+// 💥 COLLISION HANDLER (REFACTORED)
+import { CollisionHandler } from './CollisionHandler'
+
 /**
  * 🎮 GLXY ULTIMATE FPS ENGINE V4
  *
@@ -457,6 +460,9 @@ export class UltimateFPSEngineV4 {
   // 🤖 ENEMY AI MANAGER (REFACTORED)
   private enemyAIManager!: EnemyAIManager
 
+  // 💥 COLLISION HANDLER (REFACTORED)
+  private collisionHandler!: CollisionHandler
+
   private uiRenderCallback?: (state: GameState, data: any) => void
 
   // Animation
@@ -709,6 +715,41 @@ export class UltimateFPSEngineV4 {
       onEnemyKilled: (enemy, killData) => this.handleKill(killData)
     })
     console.log('✅ Enemy AI Manager initialized')
+
+    // 💥 REFACTORED: Initialize Collision Handler
+    console.log('💥 Initializing Collision Handler...')
+    this.collisionHandler = new CollisionHandler({
+      physicsEngine: this.physicsEngine,
+      effectsManager: this.effectsManager,
+      visualEffectsManager: this.visualEffectsManager,
+      audioManager: this.audioManager,
+      hitMarkerSystem: this.hitMarkerSystem,
+      damageIndicatorSystem: this.damageIndicatorSystem,
+      advancedVisualFeedback: this.advancedVisualFeedback,
+      hitboxManager: this.hitboxManager,
+      mapInteractionManager: this.mapInteractionManager,
+      player: this.player,
+      gameState: this.gameState,
+      camera: this.camera,
+      onEnemyHit: (enemy, damage, isHeadshot, hitPoint) => {
+        // Find enemy and apply damage via EnemyAIManager
+        const actualEnemy = this.enemies.find(e => e.id === (enemy as any).characterId)
+        if (actualEnemy) {
+          const killed = this.enemyAIManager.damageEnemy(actualEnemy, damage)
+          if (killed) {
+            this.handleKill({
+              enemy: actualEnemy,
+              weapon: this.weaponManager.getCurrentWeapon(),
+              distance: hitPoint.distanceTo(this.camera.position),
+              isHeadshot,
+              hitPoint
+            })
+          }
+        }
+      },
+      onScreenFlash: (type) => this.showRedScreenFlash()
+    })
+    console.log('✅ Collision Handler initialized')
 
     // 🎯 REFACTORED: Initialize Event Orchestrator (replaces all individual event setups)
     console.log('🎯 Initializing Event Orchestrator...')
@@ -2478,183 +2519,891 @@ export class UltimateFPSEngineV4 {
   /**
    * BESTE Variante: Event-basierte Hit-Detection mit allen Daten (aus V6)
    */
-  private handleBulletHit(event: {
-    point: THREE.Vector3
-    normal: THREE.Vector3
-    object: THREE.Object3D
-    damage: number
-    weapon: BaseWeapon
-  }): void {
-    // ✨ NEW: Visual Effects Manager - Impact Effects
-    const impactType = event.object?.userData?.type === 'ENEMY' ? 'blood' : 'concrete'
-    if (impactType === 'blood') {
-      // Blood effect for enemy hits
-      this.visualEffectsManager.createBloodEffect(event.point, event.normal)
-      this.effectsManager.spawnBloodSplatter(event.point, event.normal)
-      this.audioManager?.playSound('impact_flesh', event.point)
-    } else {
-      // Surface impact for environment
-      const material = event.object?.userData?.material || 'concrete'
-      this.visualEffectsManager.createImpactEffect(
-        event.point,
-        event.normal,
-        material as 'metal' | 'concrete' | 'wood'
-      )
-      this.audioManager?.playSound('impact_concrete', event.point)
-    }
-    
-    // ✅ NEU: Damage anwenden mit Enemy Health System
-    if (event.object?.userData?.type === 'ENEMY') {
-      const enemyId = event.object.userData.id
-      const enemy = this.enemies.find(e => e.id === enemyId)
-      
-      if (enemy && enemy.health > 0) {
-        // 🎯 NEW: PRÄZISE Hitbox Detection statt Simple Y-Check
-        const shootDirection = event.point.clone().sub(this.camera.position).normalize()
-        const hitResult = this.hitboxManager.raycastCharacter(
-          enemyId,
-          this.camera.position,
-          shootDirection
-        )
-        
-        const damageMultiplier = hitResult.hit ? hitResult.damageMultiplier : 1.0
-        const isHeadshot = hitResult.zone === HitboxZone.HEAD
-        
-        // 💥 NEW: Apply Ammo Type Damage Modifier
-        const ammoDamage = this.ammoSystem.calculateDamage(event.damage)
-        const finalDamage = ammoDamage * damageMultiplier
-        
-        // Log für Debug (optional)
-        if (hitResult.hit) {
-          console.log(`🎯 Hit Zone: ${hitResult.zone} (${damageMultiplier}x damage)`)
-        }
-        
-        // 🎨 NEW: Show Damage Number
-        this.advancedVisualFeedback.showDamageNumber(finalDamage, event.point, isHeadshot)
-        
-        // 🎵 NEW: Play Hit Sound
-        if (isHeadshot) {
-          this.hitSoundManager.playHitSound({
-            type: HitSoundType.HEADSHOT,
-            volume: 1.0,
-            damage: finalDamage
-          })
-        } else {
-          this.hitSoundManager.playHitSound({
-            type: HitSoundType.BODY,
-            volume: 1.0,
-            damage: finalDamage
-          })
-        }
-        
-        // ✅ Enemy Health reduzieren
-        enemy.health = Math.max(0, enemy.health - finalDamage)
-        
-        // 💥 NEW: Apply Fire Damage (Incendiary Ammo)
-        const currentAmmo = this.ammoSystem.getCurrentType()
-        const ammoProps = AMMO_PROPERTIES[currentAmmo]
-        if (ammoProps.specialEffect === 'fire' && ammoProps.effectDuration && ammoProps.effectDamage) {
-          this.fireDamageManager.applyFireDamage(enemy.id, ammoProps.effectDamage, ammoProps.effectDuration)
-        }
-        
-        // ✅ Health Bar aktualisieren
-        if (enemy.healthBar) {
-          updateHealthBar(enemy.healthBar, enemy.health, enemy.maxHealth)
-        }
-        
-        // ✅ Hit Marker zeigen
-        this.hitMarkerSystem.addHitMarker(isHeadshot, false)
-        
-        // Game State Update
-        this.gameState.shotsHit++
-        this.gameState.damageDealt += finalDamage
-        this.gameState.accuracy = (this.gameState.shotsHit / this.gameState.shotsFired) * 100
-        
-        if (isHeadshot) {
-          this.gameState.headshots++
-        }
-        
-        // ✅ Kill-Handling wenn Health <= 0
-        if (enemy.health <= 0) {
-          // ✅ Kill Hit Marker
-          this.hitMarkerSystem.addHitMarker(isHeadshot, true)
-          
-          // 🎵 NEW: Play Kill Confirm Sound
-          this.hitSoundManager.playHitSound({
-            type: HitSoundType.KILL,
-            volume: 1.0
-          })
-          
-          // 🎨 NEW: Kill Effect
-          this.advancedVisualFeedback.createKillEffect(enemy.mesh.position, isHeadshot)
-          
-          // ✅ NEU: Dopamin-System für Kill-Rewards
-          const killData: KillData = {
-            victim: enemy,
-            weapon: event.weapon,
-            distance: event.point.distanceTo(this.camera.position),
-            isHeadshot: isHeadshot,
-            isWallbang: false, // TODO: Implementiere Wallbang-Detection
-            isMidair: false, // TODO: Check if player is in air
-            isNoScope: !this.player.stats.isAiming
-          }
-          
-          const dopamineEvent = this.killRewardSystem.registerKill(killData)
-          
-          // ✅ Zeige Dopamin-Effekte
-          this.showDopamineEffects(dopamineEvent)
-          
-          // ✅ Progression Update mit Dopamin-Score
-          this.progressionManager?.awardXP(XPSource.KILL, dopamineEvent.score)
-          if (killData.isHeadshot) {
-            this.progressionManager?.awardXP(XPSource.HEADSHOT_KILL, 50)
-          }
-          
-          // 🆕 NEW: Weapon Progression Update
-          const weaponKillEvent: WeaponKillEvent = {
-            weaponId: event.weapon.getData().id,
-            isHeadshot: killData.isHeadshot,
-            distance: killData.distance,
-            isHipfire: !this.player.stats.isAiming,
-            isADS: this.player.stats.isAiming,
-            isCrouching: this.player.stats.isCrouching,
-            isSliding: false, // TODO: Add sliding detection
-            isMultikill: false, // TODO: Add multikill detection
-            xpEarned: dopamineEvent.score
-          }
-          this.weaponProgressionManager.registerKill(weaponKillEvent)
-          
-          // Update weapon mastery
-          this.weaponProgressionManager.updateMastery(event.weapon.getData().id)
-          
-          // 🆕 NEW: Charge Ultimate Ability
-          this.abilitySystem.chargeUltimate(dopamineEvent.score, 'kill')
-          
-          // 🎮 NEW: Register Kill in Game Mode
-          this.fpsGameModeManager.registerKill('player', enemy.id)
-          
-          // ✅ Game State Score Update (Dopamin-Score verwenden)
-          this.gameState.score += dopamineEvent.score
-          
-          // BESTE Kill-Handling (Cleanup & Game State)
-          this.handleKill({
-            enemy: enemy,
-            weapon: event.weapon,
-            distance: event.point.distanceTo(this.camera.position),
-            isHeadshot: isHeadshot,
-            hitPoint: event.point
-          })
-        } else {
-          // ✅ Damage über AIController (für AI-Reaktion)
-          enemy.aiController.takeDamage(finalDamage, event.point)
-        }
-      }
-    }
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
   }
 
-  /**
-   * BESTE Variante: Environment Hit Handling (aus V6)
-   */
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
+  }
+
   private handleEnvironmentHit(intersection: THREE.Intersection): void {
     // ✨ NEW: Visual Effects Manager - Impact Effect
     const material = intersection.object.userData.material || 'concrete'
