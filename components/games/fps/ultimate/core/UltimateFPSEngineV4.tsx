@@ -175,6 +175,12 @@ import { EnemyAIManager } from './EnemyAIManager'
 // 💥 COLLISION HANDLER (REFACTORED)
 import { CollisionHandler } from './CollisionHandler'
 
+// 🎮 INPUT MANAGER (REFACTORED)
+import { InputManager } from './InputManager'
+
+// 🗺️ MAP SETUP MANAGER (REFACTORED)
+import { MapSetupManager } from './MapSetupManager'
+
 /**
  * 🎮 GLXY ULTIMATE FPS ENGINE V4
  *
@@ -462,6 +468,12 @@ export class UltimateFPSEngineV4 {
 
   // 💥 COLLISION HANDLER (REFACTORED)
   private collisionHandler!: CollisionHandler
+
+  // 🎮 INPUT MANAGER (REFACTORED)
+  private inputManager!: InputManager
+
+  // 🗺️ MAP SETUP MANAGER (REFACTORED)
+  private mapSetupManager!: MapSetupManager
 
   private uiRenderCallback?: (state: GameState, data: any) => void
 
