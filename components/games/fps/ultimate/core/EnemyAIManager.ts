@@ -2,8 +2,9 @@
 'use client'
 
 import * as THREE from 'three'
-import { AIController, AIState } from '../ai/AIController'
+import { AIController } from '../ai/AIController'
 import type { AIShootData } from '../ai/AIController'
+import { AIState } from '../ai/data/AIData'
 import { PhysicsEngine } from '../physics/PhysicsEngine'
 import { CollisionLayer } from '../physics/data/PhysicsData'
 import { EffectsManager } from '../effects/EffectsManager'
