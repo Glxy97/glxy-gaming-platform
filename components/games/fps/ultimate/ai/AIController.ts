@@ -20,16 +20,15 @@
 import * as THREE from 'three'
 import {
   AIState,
-  MovementPattern,
-  CombatStyle,
-  TargetPriority,
+  AIMovementPattern,
+  AICombatStyle,
+  AISquadPosition,
   AIPersonalityData,
   AIDifficultyData,
   AIBotStateData,
   AILearningData,
-  AITeamData,
-  AIVoiceProfile,
-  PathNode,
+  AIVoiceProfileData,
+  PathfindingNode,
   DEFAULT_AI_SETTINGS,
   AI_PERSONALITIES,
   AI_DIFFICULTIES,
@@ -37,30 +36,121 @@ import {
   calculateEffectiveAccuracy,
   calculateEffectiveReactionTime,
   calculateTacticalScore,
-  selectBestCover,
-  shouldTakeCover,
-  shouldReload,
-  shouldCallForBackup,
-  shouldFlank,
-  predictPlayerPosition,
-  calculateThreatLevel,
-  getPersonalityById,
-  getDifficultyById
+  getAIPersonalityById,
+  getAIDifficultyById
 } from './data/AIData'
 
 // ============================================================
-// TYPES
+// TYPES & EXTENSIONS
 // ============================================================
 
-type AICallback = (bot: AIBotStateData) => void
+// Extended bot state with runtime properties
+interface ExtendedBotState extends AIBotStateData {
+  id: string
+  position: THREE.Vector3
+  rotation: THREE.Euler
+  mesh: THREE.Object3D
+  health: number
+  maxHealth: number
+  currentWeapon: any | null
+  ammo: number
+  maxAmmo: number
+  timeSinceTargetSeen: number
+  isUnderFire: boolean
+  velocity: THREE.Vector3
+  moveDirection: THREE.Vector3
+  lookDirection: THREE.Vector3
+  isMoving: boolean
+  isShooting: boolean
+  isReloading: boolean
+  isInCover: boolean
+  lastDamageTime: number
+  personality: string
+  difficulty: string
+  team: string | null
+  squad: string | null
+}
+
+type AICallback = (bot: ExtendedBotState) => void
 type StateChangeCallback = (oldState: AIState, newState: AIState) => void
 
 interface PathfindingGrid {
-  nodes: Map<string, PathNode>
+  nodes: Map<string, PathfindingNode>
   width: number
   height: number
   depth: number
   cellSize: number
+}
+
+// Extended learning data
+interface ExtendedLearningData extends AILearningData {
+  encountersWithPlayer: number
+  totalDamageDealt: number
+  totalDamageTaken: number
+  successfulFlanks: number
+  failedFlanks: number
+  successfulAmbushes: number
+  coverUseCount: number
+  reloadInCoverCount: number
+  playerMovementPatterns: any[]
+  playerPreferredWeapons: any[]
+  tacticalDecisions: any[]
+  adaptationLevel: number
+}
+
+// Team data (simplified)
+interface AITeamData {
+  id: string
+  members: string[]
+  leader: string | null
+}
+
+// Helper Functions (simple implementations)
+function shouldReload(ammo: number, maxAmmo: number, inCombat: boolean): boolean {
+  return ammo < maxAmmo * 0.3 || (!inCombat && ammo < maxAmmo)
+}
+
+function shouldTakeCover(health: number, maxHealth: number, underFire: boolean, ammo: number): boolean {
+  return health < maxHealth * 0.5 || (underFire && ammo < 10)
+}
+
+function shouldFlank(personality: AIPersonalityData, timeSinceTargetSeen: number, enemyStationary: boolean, hasCover: boolean): boolean {
+  return personality.tacticalThinking > 60 && timeSinceTargetSeen > 3 && hasCover
+}
+
+function shouldCallForBackup(health: number, maxHealth: number, enemies: number, allies: number, alertLevel: number): boolean {
+  return health < maxHealth * 0.3 || enemies > allies * 2
+}
+
+function predictPlayerPosition(lastPos: THREE.Vector3, velocity: THREE.Vector3, deltaTime: number): THREE.Vector3 {
+  return lastPos.clone().add(velocity.clone().multiplyScalar(deltaTime))
+}
+
+function calculateThreatLevel(health: number, maxHealth: number, enemyCount: number, ammo: number): number {
+  const healthFactor = 1 - (health / maxHealth)
+  const enemyFactor = Math.min(enemyCount / 5, 1)
+  const ammoFactor = 1 - (ammo / 30)
+  return (healthFactor * 0.4 + enemyFactor * 0.4 + ammoFactor * 0.2)
+}
+
+function selectBestCover(coverPositions: THREE.Vector3[], currentPos: THREE.Vector3, enemyPos: THREE.Vector3): THREE.Vector3 | null {
+  if (coverPositions.length === 0) return null
+
+  let bestCover = coverPositions[0]
+  let bestScore = -Infinity
+
+  for (const cover of coverPositions) {
+    const distToPlayer = cover.distanceTo(currentPos)
+    const distToEnemy = cover.distanceTo(enemyPos)
+    const score = distToEnemy - distToPlayer * 0.5
+
+    if (score > bestScore) {
+      bestScore = score
+      bestCover = cover
+    }
+  }
+
+  return bestCover
 }
 
 // ============================================================
@@ -71,11 +161,11 @@ export class AIController {
   // Configuration
   private personality: AIPersonalityData
   private difficulty: AIDifficultyData
-  private voiceProfile: AIVoiceProfile
+  private voiceProfile: AIVoiceProfileData
 
   // Bot State
-  private bot: AIBotStateData
-  private learning: AILearningData
+  private bot: ExtendedBotState
+  private learning: ExtendedLearningData
   private team: AITeamData | null = null
 
   // Combat
@@ -85,7 +175,7 @@ export class AIController {
   private aimOffset: THREE.Vector3 = new THREE.Vector3()
 
   // Pathfinding
-  private path: PathNode[] = []
+  private path: PathfindingNode[] = []
   private currentPathIndex: number = 0
   private pathfindingGrid: PathfindingGrid | null = null
   private lastPathfindTime: number = 0
@@ -117,8 +207,8 @@ export class AIController {
     difficultyId: string = 'regular',
     botMesh: THREE.Object3D
   ) {
-    const personality = getPersonalityById(personalityId)
-    const difficulty = getDifficultyById(difficultyId)
+    const personality = getAIPersonalityById(personalityId)
+    const difficulty = getAIDifficultyById(difficultyId)
 
     if (!personality) {
       throw new Error(`AI Personality "${personalityId}" not found`)
@@ -148,7 +238,7 @@ export class AIController {
       currentState: AIState.IDLE,
       previousState: AIState.IDLE,
       target: null,
-      lastKnownTargetPosition: null,
+      lastKnownPlayerPosition: null,
       timeSinceTargetSeen: 0,
       alertLevel: 0,
       isUnderFire: false,
@@ -164,11 +254,38 @@ export class AIController {
       personality: personalityId,
       difficulty: difficultyId,
       team: null,
-      squad: null
+      squad: null,
+      // Base AIBotStateData properties
+      morale: 100,
+      stamina: 100,
+      lastSeenTimestamp: 0,
+      isAiming: false,
+      isFiring: false,
+      burstFireCount: 0,
+      reloadTime: 0,
+      combatStyle: AICombatStyle.TACTICAL,
+      engagementRange: 50,
+      pathNodes: [],
+      currentPathIndex: 0,
+      coverPositions: [],
+      currentCover: null,
+      experience: 0,
+      kills: 0,
+      deaths: 0,
+      accuracy: 0,
+      survivalTime: 0,
+      learnedPatterns: new Map(),
+      teamId: '',
+      squadPosition: AISquadPosition.LONE_WOLF,
+      isFollowingOrders: false,
+      orders: [],
+      behaviorTimer: 0,
+      nextDecisionTime: 0
     }
 
     // Initialize learning data
     this.learning = {
+      // Extended properties
       encountersWithPlayer: 0,
       totalDamageDealt: 0,
       totalDamageTaken: 0,
@@ -180,7 +297,14 @@ export class AIController {
       playerMovementPatterns: [],
       playerPreferredWeapons: [],
       tacticalDecisions: [],
-      adaptationLevel: 0
+      adaptationLevel: 0,
+      // Base AILearningData properties
+      playerPatterns: new Map(),
+      successfulTactics: new Map(),
+      failedTactics: new Map(),
+      mapKnowledge: new Map(),
+      weaponPreferences: new Map(),
+      timingPatterns: new Map()
     }
 
     this.stateStartTime = Date.now()
@@ -257,7 +381,7 @@ export class AIController {
         break
 
       case AIState.DEAD:
-        this.onDeath()
+        this.handleDeath()
         break
     }
   }
@@ -462,7 +586,7 @@ export class AIController {
     const distance = this.bot.position.distanceTo(this.playerPosition)
 
     // Check if within detection range
-    const detectionRange = this.difficulty.detectionRangeMultiplier * 50 // base 50m
+    const detectionRange = this.difficulty.visionRange
 
     if (distance > detectionRange) {
       this.bot.target = null
@@ -483,7 +607,7 @@ export class AIController {
         this.learning.encountersWithPlayer++
       }
 
-      this.bot.lastKnownTargetPosition = this.playerPosition.clone()
+      this.bot.lastKnownPlayerPosition = this.playerPosition.clone()
       this.bot.timeSinceTargetSeen = 0
     } else {
       // Lost line of sight
@@ -606,11 +730,11 @@ export class AIController {
 
   private followPath(deltaTime: number): void {
     const currentNode = this.path[this.currentPathIndex]
-    const targetPosition = new THREE.Vector3(currentNode.x, currentNode.y, currentNode.z)
+    const targetPosition = currentNode.position.clone()
 
     // Move towards current node
     const direction = targetPosition.clone().sub(this.bot.position).normalize()
-    const moveSpeed = this.personality.preferredMovementPattern === MovementPattern.AGGRESSIVE ? 5.0 : 3.5
+    const moveSpeed = this.personality.movementPattern === AIMovementPattern.AGGRESSIVE ? 5.0 : 3.5
 
     this.bot.moveDirection.copy(direction)
     this.bot.velocity.copy(direction).multiplyScalar(moveSpeed)
@@ -675,12 +799,12 @@ export class AIController {
     // In a real implementation, this would scan the scene geometry
   }
 
-  private findPath(start: THREE.Vector3, end: THREE.Vector3): PathNode[] {
+  private findPath(start: THREE.Vector3, end: THREE.Vector3): PathfindingNode[] {
     // Simplified A* pathfinding
     // In a real implementation, this would use proper A* algorithm
 
     // For now, return straight line path
-    const path: PathNode[] = []
+    const path: PathfindingNode[] = []
     const steps = 10
 
     for (let i = 0; i <= steps; i++) {
@@ -690,12 +814,12 @@ export class AIController {
       const z = start.z + (end.z - start.z) * t
 
       path.push({
-        x, y, z,
-        g: 0,
-        h: 0,
-        f: 0,
-        parent: null,
-        walkable: true
+        position: new THREE.Vector3(x, y, z),
+        cost: 0,
+        neighbors: [],
+        isCover: false,
+        height: y,
+        isOccupied: false
       })
     }
 
@@ -885,9 +1009,11 @@ export class AIController {
     this.damageCallbacks.forEach(cb => cb(this.bot))
 
     // Voice response
-    const responses = this.voiceProfile.responses.taking_damage
-    const response = responses[Math.floor(Math.random() * responses.length)]
-    console.log(`[AI ${this.bot.id}] ${response}`)
+    const responses = this.voiceProfile.responses.get('taking_damage')
+    if (responses && responses.length > 0) {
+      const response = responses[Math.floor(Math.random() * responses.length)]
+      console.log(`[AI ${this.bot.id}] ${response}`)
+    }
 
     // Check death
     if (this.bot.health <= 0) {
@@ -895,15 +1021,17 @@ export class AIController {
     }
   }
 
-  private onDeath(): void {
+  private handleDeath(): void {
     this.bot.isMoving = false
     this.bot.isShooting = false
     this.bot.velocity.set(0, 0, 0)
 
     // Voice response
-    const responses = this.voiceProfile.responses.death
-    const response = responses[Math.floor(Math.random() * responses.length)]
-    console.log(`[AI ${this.bot.id}] ${response}`)
+    const responses = this.voiceProfile.responses.get('death')
+    if (responses && responses.length > 0) {
+      const response = responses[Math.floor(Math.random() * responses.length)]
+      console.log(`[AI ${this.bot.id}] ${response}`)
+    }
 
     // Notify listeners
     this.deathCallbacks.forEach(cb => cb(this.bot))

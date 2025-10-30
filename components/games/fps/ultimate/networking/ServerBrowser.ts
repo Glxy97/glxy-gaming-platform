@@ -13,15 +13,13 @@
  * @version 1.10.0-alpha
  */
 
+import { NetworkManager } from './NetworkManager'
 import {
   GameServerInfo,
   ServerRegion,
   ServerBrowserFilters,
   GameRoomInfo,
   RoomCreationSettings,
-  NetworkManager
-} from './NetworkManager'
-import {
   PacketType,
   PacketPriority
 } from './data/NetworkData'
@@ -732,7 +730,7 @@ export class ServerBrowser {
     }
 
     if (preferences?.maxPing) {
-      filtered = filtered.filter(s => s.ping <= preferences.maxPing)
+      filtered = filtered.filter(s => s.ping <= preferences.maxPing!)
     }
 
     // Filter out full servers

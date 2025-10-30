@@ -29,15 +29,14 @@ import { MapEventType } from '../maps/MapManager'
 
 // 🔊 PHASE 9: Audio System
 import { AudioManager } from '../audio/AudioManager'
-import { NetworkEventType as AudioEventType } from '../audio/AudioManager'
 
 // 🎨 PHASE 6: UI System
 import { UIManager } from '../ui/UIManager'
 import { UIEventType } from '../ui/UIManager'
+import { NotificationType } from '../ui/data/UIData'
 
 // 🌐 PHASE 10: Network System (Optional)
-import { NetworkManager } from '../networking/NetworkManager'
-import { NetworkEventType } from '../networking/NetworkManager'
+import { NetworkManager, NetworkEventType } from '../networking/NetworkManager'
 
 // Physics Data
 import {
@@ -397,7 +396,7 @@ export class UltimateFPSEngineV4 {
 
       // Show notification
       this.uiManager?.showNotification({
-        type: 'level_up',
+        type: NotificationType.LEVEL_UP,
         message: `Level ${event.data.level}!`,
         duration: 3000
       })
@@ -415,7 +414,7 @@ export class UltimateFPSEngineV4 {
 
       // Show notification
       this.uiManager?.showNotification({
-        type: 'rank_up',
+        type: NotificationType.UNLOCK,
         message: `Rank Up: ${event.data.rank}!`,
         duration: 5000
       })
@@ -433,19 +432,19 @@ export class UltimateFPSEngineV4 {
 
       // Show notification
       this.uiManager?.showNotification({
-        type: 'achievement',
+        type: NotificationType.ACHIEVEMENT,
         message: `Achievement: ${event.data.achievement.name}`,
         duration: 5000
       })
     })
 
     // Challenge Completed
-    this.progressionManager.on(ProgressionEventType.CHALLENGE_COMPLETED, (event) => {
+    this.progressionManager.on(ProgressionEventType.CHALLENGE_COMPLETE, (event) => {
       console.log(`✅ Challenge Completed: ${event.data.challenge.name}`)
 
       // Show notification
       this.uiManager?.showNotification({
-        type: 'challenge',
+        type: NotificationType.SUCCESS,
         message: `Challenge Complete: ${event.data.challenge.name}`,
         duration: 3000
       })
@@ -485,7 +484,7 @@ export class UltimateFPSEngineV4 {
 
       // Show notification
       this.uiManager?.showNotification({
-        type: 'objective',
+        type: NotificationType.SUCCESS,
         message: 'Objective Captured!',
         duration: 3000
       })
@@ -539,7 +538,7 @@ export class UltimateFPSEngineV4 {
       console.log('🌐 Connected to server')
 
       this.uiManager?.showNotification({
-        type: 'info',
+        type: NotificationType.INFO,
         message: 'Connected to server',
         duration: 2000
       })

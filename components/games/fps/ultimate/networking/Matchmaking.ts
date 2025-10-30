@@ -13,15 +13,15 @@
  * @version 1.10.0-alpha
  */
 
+import { NetworkManager } from './NetworkManager'
 import {
   MatchmakingConfig,
   MatchmakingTicket,
   MatchmakingMode,
   ServerRegion,
   MatchFoundData,
-  PartyInfo,
-  NetworkManager
-} from './NetworkManager'
+  PartyInfo
+} from './data/NetworkData'
 
 /**
  * Matchmaking event types

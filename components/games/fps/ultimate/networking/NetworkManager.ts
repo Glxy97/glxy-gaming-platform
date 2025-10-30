@@ -743,7 +743,7 @@ export class NetworkManager {
 
     // Calculate jitter
     if (this.pingHistory.length > 1) {
-      const differences = []
+      const differences: number[] = []
       for (let i = 1; i < this.pingHistory.length; i++) {
         differences.push(Math.abs(this.pingHistory[i] - this.pingHistory[i - 1]))
       }
