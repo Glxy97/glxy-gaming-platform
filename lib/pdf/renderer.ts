@@ -31,12 +31,12 @@ export async function renderPdfPage(
   try {
     // Dynamic import canvas (optional dependency)
     // This ensures the app doesn't crash if canvas is not installed
-    let createCanvas: any
+    let createCanvas: typeof import('canvas').createCanvas
     try {
       const canvasModule = await import('canvas')
       createCanvas = canvasModule.createCanvas
-    } catch (error: any) {
-      if (error.code === 'MODULE_NOT_FOUND') {
+    } catch (error: unknown) {
+      if (error instanceof Error && 'code' in error && error.code === 'MODULE_NOT_FOUND') {
         const errorMessage = 'PDF rendering is unavailable because the optional "canvas" package is not installed. Install it with: npm install canvas'
         console.error(`[PDF Renderer] ${errorMessage}`)
         throw new Error(errorMessage)
@@ -91,7 +91,7 @@ export async function renderPdfPage(
     console.log(`[PDF Renderer] ✓ Rendered page ${page}/${pageCount} (${viewport.width}x${viewport.height}px)`)
 
     return imageBuffer
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('[PDF Renderer] Error:', error)
     throw error
   }
@@ -114,7 +114,7 @@ export async function getPdfPageCount(pdfBuffer: Buffer): Promise<number> {
     })
     const pdfDoc = await loadingTask.promise
     return pdfDoc.numPages
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('[PDF Renderer] Error getting page count:', error)
     throw error
   }
@@ -146,7 +146,7 @@ export async function getPdfPageDimensions(
       width: viewport.width,
       height: viewport.height,
     }
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('[PDF Renderer] Error getting dimensions:', error)
     throw error
   }
