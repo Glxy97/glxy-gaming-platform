@@ -34,7 +34,7 @@ export class SniperRifle extends BaseWeapon {
     const spreadDirection = this.applySpread(direction, spread)
 
     // Perform raycast (long range!)
-    const hit = this.performRaycast(origin, spreadDirection, this.data.range)
+    const hit = this.performRaycast(origin, spreadDirection, this.data.range) ?? undefined
 
     // High base damage
     let damage = this.data.damage

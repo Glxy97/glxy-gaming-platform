@@ -32,7 +32,7 @@ export class Pistol extends BaseWeapon {
     const spreadDirection = this.applySpread(direction, spread)
 
     // Perform raycast
-    const hit = this.performRaycast(origin, spreadDirection, this.data.range)
+    const hit = this.performRaycast(origin, spreadDirection, this.data.range) ?? undefined
 
     // Calculate damage
     let damage = this.data.damage

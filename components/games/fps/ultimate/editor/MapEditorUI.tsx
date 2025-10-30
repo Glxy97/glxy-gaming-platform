@@ -153,7 +153,7 @@ export function MapEditorUI({ onClose }: MapEditorUIProps) {
   // Toolbar actions
   const handleNewMap = () => {
     if (editorRef.current) {
-      editorRef.current.createNewMap('New Map', 'urban', 'medium')
+      editorRef.current.createNewMap('New Map', MapTheme.URBAN, MapSize.MEDIUM)
       setMapName('New Map')
     }
   }
