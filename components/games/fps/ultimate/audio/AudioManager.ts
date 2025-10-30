@@ -533,9 +533,9 @@ export class AudioManager {
       source.loop = track.loop
 
       // Set loop points
-      if (track.loop && track.loop) {
-        source.loopStart = track.loop.start
-        source.loopEnd = track.loop.end
+      if (track.loop && track.loopPoints) {
+        source.loopStart = track.loopPoints.start
+        source.loopEnd = track.loopPoints.end
       }
 
       // Create gain

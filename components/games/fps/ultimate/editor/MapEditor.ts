@@ -25,6 +25,7 @@ import * as THREE from 'three'
 import { TransformControls } from 'three/examples/jsm/controls/TransformControls'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls'
 import type { MapData } from '../maps/data/MapData'
+import { MapTheme, MapSize } from '../maps/data/MapData'
 import { MapLoader } from '../maps/MapLoader'
 import {
   type MapEditorState,
@@ -88,7 +89,7 @@ export class MapEditor {
   private mapLoader: MapLoader
 
   // Auto-save timer
-  private autoSaveTimer: NodeJS.Timeout | null = null
+  private autoSaveTimer: number | null = null
 
   // Animation frame
   private animationFrameId: number | null = null
@@ -294,22 +295,42 @@ export class MapEditor {
    */
   public async createNewMap(
     name: string,
-    theme: MapData['theme'],
-    size: MapData['size']
+    theme: MapTheme,
+    size: MapSize
   ): Promise<void> {
     // Clear current map
     this.clearScene()
 
-    // Create new empty map data
+    // Create new empty map data with proper structure
+    const now = new Date()
     const newMap: Partial<MapData> = {
-      id: generateObjectId('map'),
-      name,
-      theme,
-      size,
+      metadata: {
+        id: generateObjectId('map'),
+        name,
+        displayName: name,
+        description: `Custom map created in editor`,
+        author: 'Player',
+        version: '1.0.0',
+        theme,
+        size,
+        recommendedPlayers: {
+          min: 2,
+          max: 16,
+          optimal: 8
+        },
+        supportedGameModes: ['tdm', 'ffa', 'dom'],
+        defaultGameMode: 'tdm',
+        thumbnail: '',
+        screenshots: [],
+        loadingScreen: '',
+        tags: ['custom', 'editor'],
+        createdAt: now,
+        updatedAt: now
+      },
       geometry: [],
-      spawns: [],
+      spawnPoints: [],
       objectives: [],
-      zones: [],
+      coverPoints: [],
       interactiveElements: []
     }
 
@@ -326,7 +347,7 @@ export class MapEditor {
     try {
       // For now, we'll create a placeholder
       // In production, this would load from a file/database
-      await this.createNewMap('Loaded Map', 'urban', 'medium')
+      await this.createNewMap('Loaded Map', MapTheme.URBAN, MapSize.MEDIUM)
 
       this.emitEvent(MapEditorEventType.MAP_LOADED, { mapId })
     } catch (error) {

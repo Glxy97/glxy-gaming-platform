@@ -23,6 +23,7 @@ import {
   MovementStateData,
   MovementAbilityData,
   WallInfo,
+  WallRunDirection,
   ObstacleTarget,
   DEFAULT_MOVEMENT_SETTINGS,
   MOVEMENT_ABILITIES,
@@ -432,7 +433,7 @@ export class MovementController implements IMovementController {
       if (intersects.length > 0 && intersects[0].distance < 1.0) {
         return {
           normal: intersects[0].face?.normal.clone() || new THREE.Vector3(0, 0, 1),
-          direction: dir.x > 0 ? 'right' as const : 'left' as const,
+          direction: dir.x > 0 ? WallRunDirection.RIGHT : WallRunDirection.LEFT,
           isClimbable: true,
           distance: intersects[0].distance,
           contactPoint: intersects[0].point

@@ -584,7 +584,7 @@ export const MUSIC_MENU: MusicTrackData = {
   fadeOut: 2.0,
   crossfadeDuration: 3.0,
   layers: [],
-  loop: {
+  loopPoints: {
     start: 10,
     end: 170
   }
@@ -626,7 +626,7 @@ export const MUSIC_INTENSE: MusicTrackData = {
     start: 0,
     end: 8
   },
-  loop: {
+  loopPoints: {
     start: 8,
     end: 232
   }
