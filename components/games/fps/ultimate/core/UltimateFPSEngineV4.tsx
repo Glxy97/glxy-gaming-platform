@@ -19,8 +19,7 @@ import { AIController } from '../ai/AIController'
 import { EffectsManager } from '../effects/EffectsManager'
 
 // 🎯 PHASE 7: Progression System
-import { ProgressionManager } from '../progression/ProgressionManager'
-import { ProgressionEventType } from '../progression/ProgressionManager'
+import { ProgressionManager, ProgressionEventType, createPlayerProfile } from '../progression/ProgressionManager'
 
 // 🗺️ PHASE 8: Map System
 import { MapManager } from '../maps/MapManager'
@@ -28,12 +27,12 @@ import { MapLoader } from '../maps/MapLoader'
 import { MapEventType } from '../maps/MapManager'
 
 // 🔊 PHASE 9: Audio System
-import { AudioManager } from '../audio/AudioManager'
+import { AudioManager, AudioEventType } from '../audio/AudioManager'
 
 // 🎨 PHASE 6: UI System
 import { UIManager } from '../ui/UIManager'
 import { UIEventType } from '../ui/UIManager'
-import { NotificationType } from '../ui/data/UIData'
+import { NotificationType, createNotificationTemplate } from '../ui/data/UIData'
 
 // 🌐 PHASE 10: Network System (Optional)
 import { NetworkManager, NetworkEventType } from '../networking/NetworkManager'
@@ -260,7 +259,7 @@ export class UltimateFPSEngineV4 {
     // Initialize Controllers (Phase 4-5)
     this.movementController = new MovementController()
     this.physicsEngine = new PhysicsEngine()
-    this.effectsManager = new EffectsManager(this.scene, EffectQuality.HIGH)
+    this.effectsManager = new EffectsManager(EffectQuality.HIGH)
 
     // Initialize Player
     this.player = {
@@ -329,14 +328,15 @@ export class UltimateFPSEngineV4 {
     try {
       // 🏆 PHASE 7: Progression Manager
       console.log('🏆 Initializing Progression System...')
-      this.progressionManager = new ProgressionManager('player-1')
+      const playerProfile = createPlayerProfile('player-1', 'Player')
+      this.progressionManager = new ProgressionManager(playerProfile)
       this.setupProgressionEvents()
       console.log('✅ Progression System Ready')
 
       // 🗺️ PHASE 8: Map System
       console.log('🗺️ Initializing Map System...')
       this.mapLoader = new MapLoader()
-      this.mapManager = new MapManager(this.mapLoader)
+      this.mapManager = new MapManager()
       this.setupMapEvents()
       console.log('✅ Map System Ready')
 
@@ -352,8 +352,7 @@ export class UltimateFPSEngineV4 {
 
       // 🎨 PHASE 6: UI Manager
       console.log('🎨 Initializing UI System...')
-      this.uiManager = new UIManager({
-        updateInterval: 16, // 60 Hz
+      this.uiManager = new UIManager(this.container, {
         theme: 'glxy',
         layout: 'default'
       })
@@ -395,11 +394,11 @@ export class UltimateFPSEngineV4 {
       this.audioManager?.playSound('level_up', this.player.position)
 
       // Show notification
-      this.uiManager?.showNotification({
-        type: NotificationType.LEVEL_UP,
-        message: `Level ${event.data.level}!`,
-        duration: 3000
-      })
+      this.uiManager?.showNotification(
+        createNotificationTemplate(NotificationType.LEVEL_UP, `Level ${event.data.level}!`, {
+          duration: 3
+        })
+      )
 
       // Update game state
       this.gameState.level = event.data.level
@@ -413,11 +412,11 @@ export class UltimateFPSEngineV4 {
       this.audioManager?.playSound('rank_up', this.player.position)
 
       // Show notification
-      this.uiManager?.showNotification({
-        type: NotificationType.UNLOCK,
-        message: `Rank Up: ${event.data.rank}!`,
-        duration: 5000
-      })
+      this.uiManager?.showNotification(
+        createNotificationTemplate(NotificationType.UNLOCK, `Rank Up: ${event.data.rank}!`, {
+          duration: 5
+        })
+      )
 
       // Update game state
       this.gameState.rank = event.data.rank
@@ -431,11 +430,11 @@ export class UltimateFPSEngineV4 {
       this.audioManager?.playSound('achievement_unlock', this.player.position)
 
       // Show notification
-      this.uiManager?.showNotification({
-        type: NotificationType.ACHIEVEMENT,
-        message: `Achievement: ${event.data.achievement.name}`,
-        duration: 5000
-      })
+      this.uiManager?.showNotification(
+        createNotificationTemplate(NotificationType.ACHIEVEMENT, `Achievement: ${event.data.achievement.name}`, {
+          duration: 5
+        })
+      )
     })
 
     // Challenge Completed
@@ -443,11 +442,11 @@ export class UltimateFPSEngineV4 {
       console.log(`✅ Challenge Completed: ${event.data.challenge.name}`)
 
       // Show notification
-      this.uiManager?.showNotification({
-        type: NotificationType.SUCCESS,
-        message: `Challenge Complete: ${event.data.challenge.name}`,
-        duration: 3000
-      })
+      this.uiManager?.showNotification(
+        createNotificationTemplate(NotificationType.SUCCESS, `Challenge Complete: ${event.data.challenge.name}`, {
+          duration: 3
+        })
+      )
     })
   }
 
@@ -468,7 +467,7 @@ export class UltimateFPSEngineV4 {
       // Play ambient sounds for map
       const mapData = event.data
       if (mapData.ambientSound) {
-        this.audioManager?.playSound(mapData.ambientSound, undefined, 0.3, 1, true)
+        this.audioManager?.playSound(mapData.ambientSound, undefined, 0.3, 1)
       }
     })
 
@@ -477,17 +476,17 @@ export class UltimateFPSEngineV4 {
       console.log(`🎯 Objective Captured: ${event.data.objectiveId}`)
 
       // Award XP
-      this.progressionManager?.addXP('objective', 300)
+      this.progressionManager?.awardXP('objective', 300)
 
       // Play capture sound
       this.audioManager?.playSound('objective_captured', this.player.position)
 
       // Show notification
-      this.uiManager?.showNotification({
-        type: NotificationType.SUCCESS,
-        message: 'Objective Captured!',
-        duration: 3000
-      })
+      this.uiManager?.showNotification(
+        createNotificationTemplate(NotificationType.SUCCESS, 'Objective Captured!', {
+          duration: 3
+        })
+      )
     })
   }
 
@@ -537,11 +536,11 @@ export class UltimateFPSEngineV4 {
     this.networkManager.on(NetworkEventType.CONNECTED, (event) => {
       console.log('🌐 Connected to server')
 
-      this.uiManager?.showNotification({
-        type: NotificationType.INFO,
-        message: 'Connected to server',
-        duration: 2000
-      })
+      this.uiManager?.showNotification(
+        createNotificationTemplate(NotificationType.INFO, 'Connected to server', {
+          duration: 2
+        })
+      )
     })
 
     // Player Joined
@@ -563,11 +562,11 @@ export class UltimateFPSEngineV4 {
     try {
       console.log(`🗺️ Loading map: ${mapId}`)
 
-      const map = await this.mapManager.loadMap(mapId, (progress) => {
-        console.log(`Loading map: ${Math.round(progress * 100)}%`)
+      await this.mapManager.loadMap(mapId, (progress) => {
+        console.log(`Loading map: ${Math.round(progress.percentage * 100)}%`)
       })
 
-      console.log(`✅ Map loaded: ${map.name}`)
+      console.log(`✅ Map loaded: ${mapId}`)
 
       // Map setup happens in MAP_LOADED event
     } catch (error) {
