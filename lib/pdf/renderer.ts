@@ -3,9 +3,8 @@
  * Converts PDF pages to PNG images using pdfjs-dist + canvas
  *
  * Note: Uses local self-shim (not global polyfill) for pdfjs-dist Node.js compatibility
+ * Note: Canvas is an optional dependency - dynamic import ensures graceful degradation
  */
-
-import { createCanvas } from 'canvas'
 
 export interface RenderOptions {
   page?: number // Page number (1-indexed)
@@ -16,6 +15,9 @@ export interface RenderOptions {
 /**
  * Render PDF page to image buffer using pdfjs-dist + canvas
  * Uses lazy import with local self-shim for server-side compatibility
+ *
+ * IMPORTANT: Uses dynamic import for canvas (optional dependency)
+ * Will throw descriptive error if canvas is not available
  */
 export async function renderPdfPage(
   pdfBuffer: Buffer,
@@ -27,6 +29,26 @@ export async function renderPdfPage(
   } = options
 
   try {
+    // Dynamic import canvas (optional dependency)
+    // This ensures the app doesn't crash if canvas is not installed
+    let createCanvas: (width: number, height: number) => any
+    try {
+      const canvasModule = await import('canvas')
+      createCanvas = canvasModule.createCanvas
+    } catch (error: unknown) {
+      if (
+        error instanceof Error &&
+        ['MODULE_NOT_FOUND', 'ERR_MODULE_NOT_FOUND'].includes(
+          (error as NodeJS.ErrnoException).code ?? ''
+        )
+      ) {
+        const errorMessage = 'PDF rendering is unavailable because the optional "canvas" package is not installed. Install it with: npm install canvas'
+        console.error(`[PDF Renderer] ${errorMessage}`)
+        throw new Error(errorMessage, { cause: error })
+      }
+      throw error
+    }
+
     // Local self-shim for pdfjs-dist (server-only, no global pollution)
     if (typeof (globalThis as any).self === 'undefined') {
       (globalThis as any).self = globalThis
@@ -55,7 +77,7 @@ export async function renderPdfPage(
     const pdfPage = await pdfDoc.getPage(page)
     const viewport = pdfPage.getViewport({ scale })
 
-    // Create canvas
+    // Create canvas (dynamic import - safe if canvas not available)
     const canvas = createCanvas(viewport.width, viewport.height)
     const context = canvas.getContext('2d')
 
@@ -74,7 +96,7 @@ export async function renderPdfPage(
     console.log(`[PDF Renderer] ✓ Rendered page ${page}/${pageCount} (${viewport.width}x${viewport.height}px)`)
 
     return imageBuffer
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('[PDF Renderer] Error:', error)
     throw error
   }
@@ -97,7 +119,7 @@ export async function getPdfPageCount(pdfBuffer: Buffer): Promise<number> {
     })
     const pdfDoc = await loadingTask.promise
     return pdfDoc.numPages
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('[PDF Renderer] Error getting page count:', error)
     throw error
   }
@@ -129,7 +151,7 @@ export async function getPdfPageDimensions(
       width: viewport.width,
       height: viewport.height,
     }
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('[PDF Renderer] Error getting dimensions:', error)
     throw error
   }
