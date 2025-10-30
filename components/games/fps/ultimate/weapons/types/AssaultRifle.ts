@@ -32,7 +32,7 @@ export class AssaultRifle extends BaseWeapon {
     const spreadDirection = this.applySpread(direction, spread)
 
     // Perform raycast
-    const hit = this.performRaycast(origin, spreadDirection, this.data.range)
+    const hit = this.performRaycast(origin, spreadDirection, this.data.range) ?? undefined
 
     // Calculate damage (with falloff over distance)
     let damage = this.data.damage

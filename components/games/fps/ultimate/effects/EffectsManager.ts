@@ -385,7 +385,7 @@ export class EffectsManager {
         break
 
       case 'spot':
-        light = new THREE.SpotLight(
+        const spotLight = new THREE.SpotLight(
           lightData.color,
           lightData.intensity,
           lightData.range,
@@ -393,8 +393,9 @@ export class EffectsManager {
           lightData.decay
         )
         if (lightData.direction) {
-          light.target.position.copy(lightData.direction)
+          spotLight.target.position.copy(lightData.direction)
         }
+        light = spotLight
         break
 
       case 'directional':

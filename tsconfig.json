@@ -40,8 +40,6 @@
     "verbatimModuleSyntax": false,
     "alwaysStrict": true,
     "noImplicitOverride": false,
-    "noPropertyAccessFromIndexSignature": false,
-    "noUncheckedIndexedAccess": false,
     "paths": {
       "@/*": ["./*"]
     }

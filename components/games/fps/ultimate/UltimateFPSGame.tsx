@@ -126,7 +126,7 @@ export default function UltimateFPSGame() {
                 onClick={() => {
                   // INTELLIGENT: Initialize engine with selected mode
                   if (engineRef.current) {
-                    engineRef.current.changeGameMode(selectedMode)
+                    engineRef.current.gameModeManager.changeMode(selectedMode)
                   }
                   setGameStarted(true)
                 }}

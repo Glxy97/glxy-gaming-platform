@@ -2,7 +2,7 @@
 'use client'
 
 import * as THREE from 'three'
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader'
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
 
 // Game Mode System
 import { GameModeManager } from './GameModeManager'
@@ -1304,9 +1304,9 @@ export class UltimateFPSEngineV4 {
 
     // Create AI controller
     const aiController = new AIController(
-      `enemy-${Date.now()}`,
-      'aggressive',
-      'regular'
+      'aggressive_assault',
+      'regular',
+      enemyGroup
     )
 
     const enemy: UltimateEnemy = {
