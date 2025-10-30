@@ -71,7 +71,8 @@ export default function UltimateFPSGame() {
       containerRef.current,
       (stats) => setGameStats(stats),
       (result) => console.log('Game End:', result),
-      true // Enable multiplayer support (optional)
+      true, // Enable multiplayer support (optional)
+      { initialMode: selectedMode } // PROFESSIONAL: Set initial mode deterministically
     )
 
     engineRef.current = engine
@@ -82,7 +83,7 @@ export default function UltimateFPSGame() {
         engineRef.current.destroy()
       }
     }
-  }, [gameStarted])
+  }, [gameStarted, selectedMode])
 
   const formatTime = (seconds: number): string => {
     const mins = Math.floor(seconds / 60)
@@ -122,12 +123,10 @@ export default function UltimateFPSGame() {
             
             {/* KORREKT: Start Button */}
             <div className="flex justify-center">
-              <Button 
+              <Button
                 onClick={() => {
-                  // INTELLIGENT: Initialize engine with selected mode
-                  if (engineRef.current) {
-                    engineRef.current.changeGameMode(selectedMode)
-                  }
+                  // PROFESSIONAL: initialMode is set deterministically in useEffect
+                  // No need to call changeGameMode() before engine creation
                   setGameStarted(true)
                 }}
                 className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-bold py-6 px-12 text-xl"
