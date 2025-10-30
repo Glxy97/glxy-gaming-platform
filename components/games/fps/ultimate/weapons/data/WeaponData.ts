@@ -16,18 +16,83 @@ export enum WeaponType {
   SNIPER = 'sniper',
   SHOTGUN = 'shotgun',
   SMG = 'smg',
-  MELEE = 'melee'
+  MELEE = 'melee',
+  LMG = 'lmg',
+  MARKSMAN = 'marksman',
+  ENERGY = 'energy',
+  EXPLOSIVE = 'explosive'
 }
 
 export enum FireMode {
   SEMI_AUTO = 'SEMI_AUTO',
   BURST = 'BURST',
-  FULL_AUTO = 'FULL_AUTO'
+  FULL_AUTO = 'FULL_AUTO',
+  BOLT_ACTION = 'BOLT_ACTION',
+  CHARGE = 'CHARGE',
+  SINGLE = 'SINGLE'
+}
+
+export enum AttachmentType {
+  BARREL = 'barrel',
+  OPTIC = 'optic',
+  UNDERBARREL = 'underbarrel',
+  MAGAZINE = 'magazine',
+  STOCK = 'stock',
+  LASER = 'laser',
+  GRIP = 'grip',
+  MUZZLE = 'muzzle'
+}
+
+export enum WeaponRarity {
+  COMMON = 'common',
+  RARE = 'rare',
+  EPIC = 'epic',
+  LEGENDARY = 'legendary',
+  MYTHIC = 'mythic'
 }
 
 // ============================================================
 // INTERFACES
 // ============================================================
+
+/**
+ * Attachment Effect - Modifies weapon stats
+ */
+export interface AttachmentEffect {
+  damage?: number
+  accuracy?: number
+  recoil?: number
+  range?: number
+  fireRate?: number
+  magazineSize?: number
+  adsSpeed?: number
+  weight?: number
+}
+
+/**
+ * Weapon Attachment Definition
+ */
+export interface WeaponAttachment {
+  id: string
+  name: string
+  type: AttachmentType
+  description?: string
+  effect: AttachmentEffect
+  unlockLevel: number
+  visualModel?: string
+}
+
+/**
+ * Weapon Skin Tier
+ */
+export interface WeaponSkin {
+  id: string
+  name: string
+  rarity: WeaponRarity
+  price: number
+  visualEffects?: string[]
+  textureOverride?: string
+}
 
 /**
  * Recoil Pattern - CS:GO-Style
@@ -61,6 +126,10 @@ export interface WeaponSoundPaths {
 /**
  * Main Weapon Data Blueprint
  * This is the core data structure that defines a weapon
+ *
+ * @remarks
+ * Extended from original WeaponData to include progression and economy features
+ * from GLXYWeapons.tsx integration (Oct 29, 2025)
  */
 export interface WeaponData {
   // ============================================================
@@ -69,7 +138,15 @@ export interface WeaponData {
   id: string                    // Unique identifier (e.g., "m4a1")
   name: string                  // Display name (e.g., "M4A1 Carbine")
   type: WeaponType             // Weapon category
+  category?: string             // Display category (e.g., "Assault Rifles")
   description?: string          // Optional flavor text
+
+  // ============================================================
+  // PROGRESSION & ECONOMY (Added from GLXY integration)
+  // ============================================================
+  price?: number                // In-game currency cost
+  unlockLevel?: number          // Player level required to unlock
+  specialProperties?: string[]  // Unique weapon traits (e.g., "armor_penetration")
 
   // ============================================================
   // VISUALS
@@ -145,6 +222,12 @@ export interface WeaponData {
   weight: number                      // Affects movement speed (kg)
   switchSpeed: number                 // Time to switch to this weapon (seconds)
   inspectTime: number                 // Duration of inspect animation (seconds)
+
+  // ============================================================
+  // CUSTOMIZATION
+  // ============================================================
+  attachments?: WeaponAttachment[]    // Available attachments
+  skins?: WeaponSkin[]               // Available cosmetic skins
 }
 
 // ============================================================
