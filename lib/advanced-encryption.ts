@@ -142,7 +142,10 @@ export class DatabaseEncryption {
 
   // Initialisiere Verschlüsselungsschlüssel
   static async initializeKeys(masterPassword: string): Promise<void> {
-    const salt = Buffer.from(process.env.DB_ENCRYPTION_SALT || 'default-salt', 'hex')
+    if (!process.env.DB_ENCRYPTION_SALT) {
+      throw new Error('DB_ENCRYPTION_SALT environment variable is required for database encryption')
+    }
+    const salt = Buffer.from(process.env.DB_ENCRYPTION_SALT, 'hex')
 
     // Derive master key
     const masterKey = pbkdf2Sync(
@@ -209,8 +212,11 @@ export class DatabaseEncryption {
 
   // Sichere DB-Verbindungsstring-Verschlüsselung
   static encryptConnectionString(connectionString: string): string {
+    if (!process.env.DB_CONNECTION_ENCRYPTION_KEY) {
+      throw new Error('DB_CONNECTION_ENCRYPTION_KEY environment variable is required for connection string encryption')
+    }
     const key = createHash('sha256')
-      .update(process.env.DB_CONNECTION_ENCRYPTION_KEY || 'default-key')
+      .update(process.env.DB_CONNECTION_ENCRYPTION_KEY)
       .digest()
 
     return FieldLevelEncryption.encryptField(connectionString, 'financial', key)
@@ -313,7 +319,10 @@ export class FileEncryption {
   }
 
   private static deriveUserFileKey(userId: string): Buffer {
-    const masterKey = process.env.FILE_ENCRYPTION_MASTER_KEY || 'default-master-key'
+    if (!process.env.FILE_ENCRYPTION_MASTER_KEY) {
+      throw new Error('FILE_ENCRYPTION_MASTER_KEY environment variable is required for file encryption')
+    }
+    const masterKey = process.env.FILE_ENCRYPTION_MASTER_KEY
 
     return createHash('sha256')
       .update(masterKey)
@@ -373,7 +382,10 @@ export class KeyManagementSystem {
     purpose: 'session' | 'api' | 'webhook' | 'backup',
     context: string
   ): Buffer {
-    const masterKey = process.env.MASTER_ENCRYPTION_KEY || 'default-master'
+    if (!process.env.MASTER_ENCRYPTION_KEY) {
+      throw new Error('MASTER_ENCRYPTION_KEY environment variable is required for key derivation')
+    }
+    const masterKey = process.env.MASTER_ENCRYPTION_KEY
 
     return pbkdf2Sync(
       masterKey,
