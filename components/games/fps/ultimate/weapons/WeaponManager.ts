@@ -12,6 +12,8 @@ import { BaseWeapon } from './BaseWeapon'
 import { AssaultRifle } from './types/AssaultRifle'
 import { SniperRifle } from './types/SniperRifle'
 import { Pistol } from './types/Pistol'
+import { PhysicsEngine } from '../physics/PhysicsEngine'
+import { CollisionLayer } from '../physics/data/PhysicsData'
 
 // ============================================================
 // TYPES
@@ -23,7 +25,17 @@ export interface WeaponSwitchEvent {
   timestamp: number
 }
 
+export interface ShootResult {
+  success: boolean
+  origin: THREE.Vector3
+  direction: THREE.Vector3
+  damage: number
+  weapon: BaseWeapon
+  hit?: THREE.Intersection
+}
+
 export type WeaponManagerEventCallback = (event: WeaponSwitchEvent) => void
+export type WeaponFireCallback = (result: ShootResult) => void
 
 // ============================================================
 // WEAPON MANAGER CLASS
@@ -41,10 +53,14 @@ export class WeaponManager {
   
   // Event callbacks
   private onSwitchCallbacks: WeaponManagerEventCallback[] = []
+  private onFireCallbacks: WeaponFireCallback[] = []
   
   // Scene references
   private scene?: THREE.Scene
   private camera?: THREE.Camera
+  
+  // Physics Integration (BESTE Variante aus V6)
+  private physicsEngine: PhysicsEngine | null = null
 
   // ============================================================
   // INITIALIZATION
@@ -64,6 +80,14 @@ export class WeaponManager {
   setCamera(camera: THREE.Camera): void {
     this.camera = camera
     console.log('🔫 WeaponManager: Camera set')
+  }
+
+  /**
+   * BESTE Variante: Physics Engine für Raycasting setzen (aus V6)
+   */
+  setPhysicsEngine(engine: PhysicsEngine): void {
+    this.physicsEngine = engine
+    console.log('🔫 WeaponManager: Physics Engine connected for raycasting')
   }
 
   // ============================================================
@@ -267,8 +291,9 @@ export class WeaponManager {
 
   /**
    * Shoot current weapon
+   * BESTE Variante: Mit PhysicsEngine Raycasting (aus V6)
    */
-  shoot(origin: THREE.Vector3, direction: THREE.Vector3) {
+  shoot(origin: THREE.Vector3, direction: THREE.Vector3): ShootResult | null {
     if (!this.currentWeapon) {
       console.warn('⚠️ No weapon equipped')
       return null
@@ -279,7 +304,56 @@ export class WeaponManager {
       return null
     }
 
-    return this.currentWeapon.shoot(origin, direction)
+    // Weapon shoot
+    const weaponResult = this.currentWeapon.shoot(origin, direction)
+    if (!weaponResult || !weaponResult.success) {
+      return null
+    }
+
+    // BESTE Variante: Raycasting über PhysicsEngine (aus V6)
+    let hit: THREE.Intersection | undefined
+    
+    if (this.physicsEngine) {
+      const rayResult = this.physicsEngine.raycast(
+        origin,
+        direction,
+        this.currentWeapon.getData().range || 1000,
+        [CollisionLayer.ENEMY, CollisionLayer.WORLD]
+      )
+      
+      if (rayResult.hit) {
+        hit = {
+          distance: rayResult.distance,
+          point: rayResult.point,
+          object: rayResult.object?.mesh || new THREE.Object3D(),
+          face: null,
+          faceIndex: 0,
+          uv: null,
+          uv1: null,
+          normal: rayResult.normal,
+          instanceId: undefined
+        }
+      }
+    } else if (this.scene) {
+      // Fallback: Eigenes Raycasting wenn keine PhysicsEngine
+      const raycaster = new THREE.Raycaster(origin, direction, 0, this.currentWeapon.getData().range || 1000)
+      const intersects = raycaster.intersectObjects(this.scene.children, true)
+      hit = intersects[0]
+    }
+
+    const result: ShootResult = {
+      success: true,
+      origin: weaponResult.origin,
+      direction: weaponResult.direction,
+      damage: weaponResult.damage,
+      weapon: this.currentWeapon,
+      hit
+    }
+
+    // BESTE Variante: Fire Event (aus V6)
+    this.fireWeaponFireEvent(result)
+
+    return result
   }
 
   /**
@@ -370,7 +444,7 @@ export class WeaponManager {
    * Create weapon instance based on type (Factory Method)
    */
   private createWeapon(data: WeaponData): BaseWeapon {
-    console.log(`🏭 Creating weapon: ${data.name} (${data.type})`)
+    // Silent weapon creation - no console spam
 
     switch (data.type) {
       case WeaponType.RIFLE:
@@ -384,17 +458,9 @@ export class WeaponManager {
         return new Pistol(data)
       
       case WeaponType.SHOTGUN:
-        // TODO: Create Shotgun class
-        console.warn('⚠️ Shotgun class not implemented, using Pistol')
-        return new Pistol(data)
-      
       case WeaponType.MELEE:
-        // TODO: Create Melee class
-        console.warn('⚠️ Melee class not implemented, using Pistol')
-        return new Pistol(data)
-      
       default:
-        console.warn(`⚠️ Unknown weapon type: ${data.type}, defaulting to Pistol`)
+        // Silent fallback to Pistol
         return new Pistol(data)
     }
   }
@@ -433,6 +499,13 @@ export class WeaponManager {
   }
 
   /**
+   * BESTE Variante: Fire Event Callback (aus V6)
+   */
+  onFire(callback: WeaponFireCallback): void {
+    this.onFireCallbacks.push(callback)
+  }
+
+  /**
    * Fire weapon switch event
    */
   private fireWeaponSwitchEvent(from: BaseWeapon | null, to: BaseWeapon): void {
@@ -447,6 +520,19 @@ export class WeaponManager {
         callback(event)
       } catch (error) {
         console.error('❌ Error in weapon switch callback:', error)
+      }
+    })
+  }
+
+  /**
+   * BESTE Variante: Fire Weapon Fire Event (aus V6)
+   */
+  private fireWeaponFireEvent(result: ShootResult): void {
+    this.onFireCallbacks.forEach(callback => {
+      try {
+        callback(result)
+      } catch (error) {
+        console.error('❌ Error in weapon fire callback:', error)
       }
     })
   }

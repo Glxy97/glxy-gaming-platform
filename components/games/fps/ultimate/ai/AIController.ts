@@ -74,6 +74,17 @@ interface ExtendedBotState extends AIBotStateData {
 type AICallback = (bot: ExtendedBotState) => void
 type StateChangeCallback = (oldState: AIState, newState: AIState) => void
 
+// BESTE Variante: AI Shoot Callback (aus V6)
+export interface AIShootData {
+  origin: THREE.Vector3
+  direction: THREE.Vector3
+  damage: number
+  accuracy: number
+}
+
+type AIShootCallback = (data: AIShootData) => void
+type AIDeathCallback = () => void
+
 interface PathfindingGrid {
   nodes: Map<string, PathfindingNode>
   width: number
@@ -193,6 +204,10 @@ export class AIController {
   private stateChangeCallbacks: StateChangeCallback[] = []
   private deathCallbacks: AICallback[] = []
   private damageCallbacks: AICallback[] = []
+  
+  // BESTE Variante: AI Shoot Callbacks (aus V6)
+  private onShootCallbacks: AIShootCallback[] = []
+  private onDeathSimpleCallbacks: AIDeathCallback[] = []
 
   // Scene references
   private scene: THREE.Scene | null = null
@@ -596,7 +611,17 @@ export class AIController {
     // Check line of sight
     const direction = this.playerPosition.clone().sub(this.bot.position).normalize()
     const raycaster = new THREE.Raycaster(this.bot.position, direction, 0, distance)
-    const intersects = raycaster.intersectObjects(this.scene.children, true)
+    
+    // ✅ FIX: Filter out Sprites (Health Bars) to avoid camera errors
+    const raycastTargets = this.scene.children.filter(child => {
+      // Exclude Sprites (Health Bars)
+      if (child instanceof THREE.Sprite) return false
+      // Exclude enemy meshes (we only want obstacles)
+      if (child.userData?.type === 'ENEMY') return false
+      return true
+    })
+    
+    const intersects = raycaster.intersectObjects(raycastTargets, true)
 
     // If clear line of sight (no obstacles)
     if (intersects.length === 0 || intersects[0].distance > distance - 1) {
@@ -704,6 +729,165 @@ export class AIController {
 
     // Create bullet (handled by weapon system)
     // This would trigger bullet creation in the game engine
+  }
+
+  // ============================================================
+  // BESTE Variante: shootAtPlayer() für Event-basiertes Shooting (aus V6)
+  // ============================================================
+
+  /**
+   * BESTE Variante: Schießt auf Spieler mit Callback-System (aus V6)
+   */
+  public shootAtPlayer(): void {
+    if (!this.canShootAtPlayer()) {
+      return
+    }
+    
+    const now = Date.now()
+    this.lastShotTime = now
+    
+    // Berechne Schussrichtung mit Genauigkeit
+    const aimDirection = this.calculateAimDirection()
+    
+    // Schussposition (etwas vor dem AI)
+    const shootOrigin = this.bot.position.clone()
+    shootOrigin.y += 1.5 // Schulterhöhe
+    
+    // Schaden basiert auf Distanz und Difficulty
+    const damage = this.calculateShootDamage()
+    
+    // Accuracy berechnen
+    const accuracy = calculateEffectiveAccuracy(
+      this.personality.accuracy,
+      this.difficulty
+    )
+    
+    // Fire callback
+    const shootData: AIShootData = {
+      origin: shootOrigin,
+      direction: aimDirection,
+      damage,
+      accuracy: accuracy / 100 // 0-1 range
+    }
+    
+    this.onShootCallbacks.forEach(cb => cb(shootData))
+    
+    // Update state
+    this.bot.isShooting = true
+    this.bot.ammo = Math.max(0, this.bot.ammo - 1)
+    this.burstShotsFired++
+    
+    // Burst Fire Logic
+    const burstLength = 3 + Math.floor(Math.random() * 3) // 3-5 shots
+    if (this.burstShotsFired >= burstLength) {
+      this.burstShotsFired = 0
+      this.lastShotTime = now + 500 // Pause zwischen Bursts
+    }
+  }
+
+  /**
+   * Prüft ob AI schießen kann
+   */
+  private canShootAtPlayer(): boolean {
+    const now = Date.now()
+    
+    // Check cooldown
+    const fireRate = 600 // RPM
+    const fireDelay = 60000 / fireRate
+    if (now - this.lastShotTime < fireDelay) {
+      return false
+    }
+    
+    // Check state
+    if (this.bot.currentState === AIState.DEAD || this.bot.isReloading) {
+      return false
+    }
+    
+    // Check ammo
+    if (this.bot.ammo <= 0) {
+      return false
+    }
+    
+    // Check distance (max 100m)
+    const distance = this.bot.position.distanceTo(this.playerPosition)
+    if (distance > 100) {
+      return false
+    }
+    
+    // Check line of sight (vereinfacht)
+    const toPlayer = this.playerPosition.clone().sub(this.bot.position).normalize()
+    const distanceToPlayer = this.bot.position.distanceTo(this.playerPosition)
+    
+    if (this.scene) {
+      const raycaster = new THREE.Raycaster(
+        this.bot.position,
+        toPlayer,
+        0,
+        distanceToPlayer
+      )
+      const intersects = raycaster.intersectObjects(this.scene.children, true)
+      
+      // Hat Sichtlinie wenn keine Hindernisse
+      if (intersects.length > 0) {
+        const firstHit = intersects[0]
+        const hitDistance = firstHit.distance
+        // Wenn Hindernis näher als Spieler, keine Sichtlinie
+        if (hitDistance < distanceToPlayer - 0.5) {
+          return false
+        }
+      }
+    }
+    
+    return true
+  }
+
+  /**
+   * Berechnet Schussrichtung mit Genauigkeit
+   */
+  private calculateAimDirection(): THREE.Vector3 {
+    // Basis-Richtung zum Spieler
+    const perfectDirection = this.playerPosition.clone()
+      .sub(this.bot.position)
+      .normalize()
+    
+    // Genauigkeit anwenden (Streuung)
+    const accuracy = calculateEffectiveAccuracy(
+      this.personality.accuracy,
+      this.difficulty
+    )
+    const spread = (1 - accuracy / 100) * 0.1
+    
+    const offsetX = (Math.random() - 0.5) * spread
+    const offsetY = (Math.random() - 0.5) * spread
+    const offsetZ = (Math.random() - 0.5) * spread
+    
+    perfectDirection.x += offsetX
+    perfectDirection.y += offsetY
+    perfectDirection.z += offsetZ
+    
+    return perfectDirection.normalize()
+  }
+
+  /**
+   * Berechnet Schaden basierend auf Distanz
+   */
+  private calculateShootDamage(): number {
+    let baseDamage = 15
+    
+    const distance = this.bot.position.distanceTo(this.playerPosition)
+    
+    // Distanz-Falloff
+    if (distance > 50) {
+      baseDamage *= 0.7
+    } else if (distance > 30) {
+      baseDamage *= 0.85
+    }
+    
+    // Difficulty Multiplier
+    const difficultyMultiplier = this.difficulty.damageMultiplier || 1.0
+    baseDamage *= difficultyMultiplier
+    
+    return Math.round(baseDamage)
   }
 
   // ============================================================
@@ -1101,6 +1285,20 @@ export class AIController {
         this.damageCallbacks.splice(index, 1)
       }
     }
+  }
+
+  /**
+   * BESTE Variante: onShoot Event für AI Shooting (aus V6)
+   */
+  public onShoot(callback: AIShootCallback): void {
+    this.onShootCallbacks.push(callback)
+  }
+
+  /**
+   * BESTE Variante: onDeath einfaches Callback (aus V6)
+   */
+  public onDeath(callback: AIDeathCallback): void {
+    this.onDeathSimpleCallbacks.push(callback)
   }
 
   // ============================================================

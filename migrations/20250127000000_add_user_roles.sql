@@ -14,3 +14,5 @@ CREATE INDEX "users_role_idx" ON "users"("role");
 UPDATE "users" SET "role" = 'USER' WHERE "role" IS NULL;
 
 
+
+

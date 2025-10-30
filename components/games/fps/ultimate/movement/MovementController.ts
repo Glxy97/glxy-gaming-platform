@@ -74,6 +74,7 @@ export class MovementController implements IMovementController {
   private raycaster: THREE.Raycaster
   private scene: THREE.Scene | null = null
   private playerMesh: THREE.Object3D | null = null
+  private camera: THREE.Camera | null = null
 
   // ============================================================
   // CONSTRUCTOR
@@ -145,6 +146,13 @@ export class MovementController implements IMovementController {
    */
   public setPlayerMesh(mesh: THREE.Object3D): void {
     this.playerMesh = mesh
+  }
+
+  /**
+   * Set camera for raycasting (needed for Sprites)
+   */
+  public setCamera(camera: THREE.Camera): void {
+    this.camera = camera
   }
 
   // ============================================================
@@ -428,7 +436,23 @@ export class MovementController implements IMovementController {
       this.raycaster.set(this.playerMesh.position, dir)
       this.raycaster.far = 1.5 // Wall detection range
 
-      const intersects = this.raycaster.intersectObjects(this.scene.children, true)
+      // Set camera for sprite raycasting
+      if (this.camera) {
+        this.raycaster.camera = this.camera
+      }
+
+      // Safety check + Try-catch for raycasting
+      if (!this.scene.children || !Array.isArray(this.scene.children) || this.scene.children.length === 0) {
+        continue
+      }
+
+      let intersects: THREE.Intersection[] = []
+      try {
+        intersects = this.raycaster.intersectObjects(this.scene.children, true)
+      } catch (error) {
+        // Invalid geometry, try next direction
+        continue
+      }
 
       if (intersects.length > 0 && intersects[0].distance < 1.0) {
         return {
@@ -483,7 +507,23 @@ export class MovementController implements IMovementController {
     this.raycaster.set(this.playerMesh.position, forwardDir)
     this.raycaster.far = 1.5
 
-    const intersects = this.raycaster.intersectObjects(this.scene.children, true)
+    // Set camera for sprite raycasting
+    if (this.camera) {
+      this.raycaster.camera = this.camera
+    }
+
+    // Safety check + Try-catch for raycasting
+    if (!this.scene.children || !Array.isArray(this.scene.children) || this.scene.children.length === 0) {
+      return null
+    }
+
+    let intersects: THREE.Intersection[] = []
+    try {
+      intersects = this.raycaster.intersectObjects(this.scene.children, true)
+    } catch (error) {
+      // Invalid geometry
+      return null
+    }
 
     if (intersects.length > 0 && intersects[0].distance < 1.2) {
       const hitPoint = intersects[0].point
@@ -733,7 +773,24 @@ export class MovementController implements IMovementController {
     this.raycaster.set(this.playerMesh.position, downDir)
     this.raycaster.far = 0.2
 
-    const intersects = this.raycaster.intersectObjects(this.scene.children, true)
+    // Safety check: Ensure scene.children exists and is an array
+    if (!this.scene || !this.scene.children || !Array.isArray(this.scene.children) || this.scene.children.length === 0) {
+      return this.state.isGrounded
+    }
+
+    // Set camera for sprite raycasting
+    if (this.camera) {
+      this.raycaster.camera = this.camera
+    }
+
+    // Try-catch for raycasting (objects might have invalid geometry)
+    let intersects: THREE.Intersection[] = []
+    try {
+      intersects = this.raycaster.intersectObjects(this.scene.children, true)
+    } catch (error) {
+      // Invalid geometry in scene, return current state
+      return this.state.isGrounded
+    }
 
     if (intersects.length > 0) {
       const wasInAir = !this.state.isGrounded

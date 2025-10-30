@@ -40,6 +40,7 @@ import {
 } from './data/AudioData'
 
 import { getAllSounds, getAllMusic } from './data/audio-catalog'
+import { SoundGenerator } from './SoundGenerator'
 
 // =============================================================================
 // TYPES
@@ -133,6 +134,9 @@ export class AudioManager {
   // Event system
   private eventCallbacks: Map<AudioEventType, Array<(event: AudioEvent) => void>> = new Map()
 
+  // ✨ NEW: Sound Generator (Fallback for missing MP3s)
+  private soundGenerator: SoundGenerator
+
   // Stats
   private stats = {
     soundsPlayed: 0,
@@ -159,6 +163,10 @@ export class AudioManager {
 
     // Initialize mixer channels
     this.initializeMixer()
+
+    // ✨ NEW: Initialize Sound Generator as Fallback
+    this.soundGenerator = new SoundGenerator()
+    console.log('✨ Sound Generator initialized (Web Audio API fallback)')
 
     console.log('🔊 AudioManager: Initialized')
     console.log(`   Sample Rate: ${this.context.sampleRate}Hz`)
@@ -227,6 +235,13 @@ export class AudioManager {
     try {
       // Load first path (primary sound)
       const response = await fetch(clip.paths[0])
+      
+      // Check if file exists
+      if (!response.ok) {
+        // Silently use fallback - no error spam
+        return
+      }
+      
       const arrayBuffer = await response.arrayBuffer()
       const audioBuffer = await this.context.decodeAudioData(arrayBuffer)
 
@@ -237,9 +252,9 @@ export class AudioManager {
         this.createPool(clip, audioBuffer)
       }
 
-      console.log(`✅ Loaded sound: ${clip.name}`)
+      // Success - silent loading
     } catch (error) {
-      console.error(`❌ Failed to load sound: ${clip.name}`, error)
+      // Silently fallback to SoundGenerator - no console spam
     }
   }
 
@@ -360,15 +375,16 @@ export class AudioManager {
   ): string | null {
     const clip = getAllSounds().find(s => s.id === clipId)
     if (!clip) {
-      console.warn(`⚠️ Sound not found: ${clipId}`)
+      // Silently ignore unknown sounds
       return null
     }
 
     // Get buffer
     const buffer = this.audioBuffers.get(clipId)
     if (!buffer) {
-      console.warn(`⚠️ Sound not loaded: ${clipId}`)
-      return null
+      // ✨ Fallback to Sound Generator (no MP3 needed!) - Silent operation
+      this.soundGenerator.playSound(clipId, volume || clip.volume || 1.0)
+      return `generated-${clipId}-${Date.now()}` // Return dummy ID
     }
 
     // Check max instances
@@ -512,7 +528,7 @@ export class AudioManager {
   public async playMusic(trackId: string, fadeIn: boolean = true): Promise<void> {
     const track = getAllMusic().find(t => t.id === trackId)
     if (!track) {
-      console.warn(`⚠️ Music track not found: ${trackId}`)
+      // Silently ignore missing music
       return
     }
 
@@ -524,6 +540,13 @@ export class AudioManager {
     try {
       // Load track
       const response = await fetch(track.path)
+      
+      // Check if file exists
+      if (!response.ok) {
+        console.log(`🎵 Music not available: ${track.id} (optional)`)
+        return
+      }
+      
       const arrayBuffer = await response.arrayBuffer()
       const audioBuffer = await this.context.decodeAudioData(arrayBuffer)
 
@@ -567,7 +590,8 @@ export class AudioManager {
 
       console.log(`🎵 Playing music: ${track.name}`)
     } catch (error) {
-      console.error(`❌ Failed to play music: ${track.name}`, error)
+      // Music is optional - no console spam
+      console.log(`🎵 Music system inactive (optional feature)`)
     }
   }
 

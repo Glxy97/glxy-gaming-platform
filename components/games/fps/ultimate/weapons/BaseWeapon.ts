@@ -308,7 +308,26 @@ export abstract class BaseWeapon {
     }
     
     const raycaster = new THREE.Raycaster(origin, direction, 0, maxDistance)
-    const intersects = raycaster.intersectObjects(this.scene.children, true)
+    
+    // Set camera for sprite raycasting (if available)
+    if (this.camera) {
+      raycaster.camera = this.camera
+    }
+    
+    // Safety check: Ensure scene.children exists
+    if (!this.scene || !this.scene.children || !Array.isArray(this.scene.children) || this.scene.children.length === 0) {
+      return null
+    }
+    
+    // Try-catch for raycasting (objects might have invalid geometry/matrixWorld)
+    let intersects: THREE.Intersection[] = []
+    try {
+      intersects = raycaster.intersectObjects(this.scene.children, true)
+    } catch (error) {
+      // Invalid geometry or matrixWorld in scene
+      console.warn('⚠️ Raycasting error in weapon:', error)
+      return null
+    }
     
     // Return first hit (if any)
     return intersects.length > 0 ? intersects[0] : null

@@ -712,6 +712,18 @@ export class UIManager {
 
     const { ammo, weaponName, isReloading } = this.currentUpdateData
 
+    // ✅ DEFENSIVE: Prüfe ob ammo existiert und korrekt strukturiert ist
+    if (!ammo || typeof ammo.current === 'undefined') {
+      // Fallback: Leere Werte anzeigen
+      const current = document.getElementById('ammo-current')
+      const reserve = document.getElementById('ammo-reserve')
+      const weapon = document.getElementById('weapon-name')
+      if (current) current.textContent = '--'
+      if (reserve) reserve.textContent = '--'
+      if (weapon) weapon.textContent = weaponName || 'None'
+      return
+    }
+
     const current = document.getElementById('ammo-current')
     const reserve = document.getElementById('ammo-reserve')
     const weapon = document.getElementById('weapon-name')
@@ -721,7 +733,7 @@ export class UIManager {
       current.style.color = ammo.current <= 5 ? this.theme.colors.error : this.theme.colors.ammo
     }
     if (reserve) reserve.textContent = ammo.reserve.toString()
-    if (weapon) weapon.textContent = weaponName
+    if (weapon) weapon.textContent = weaponName || 'None'
   }
 
   private updateTimer(): void {
@@ -779,28 +791,32 @@ export class UIManager {
     ctx.fill()
 
     // Draw enemies
-    enemies.forEach(enemy => {
-      const relX = (enemy.position.x - position.x) * 2 + centerX
-      const relZ = (enemy.position.z - position.z) * 2 + centerY
+    if (enemies && enemies.length > 0) {
+      enemies.forEach(enemy => {
+        const relX = (enemy.position.x - position.x) * 2 + centerX
+        const relZ = (enemy.position.z - position.z) * 2 + centerY
 
-      if (relX >= 0 && relX <= size && relZ >= 0 && relZ <= size) {
-        ctx.fillStyle = this.minimap.enemyIcon.color
-        ctx.fillRect(relX - 3, relZ - 3, 6, 6)
-      }
-    })
+        if (relX >= 0 && relX <= size && relZ >= 0 && relZ <= size) {
+          ctx.fillStyle = this.minimap.enemyIcon.color
+          ctx.fillRect(relX - 3, relZ - 3, 6, 6)
+        }
+      })
+    }
 
     // Draw allies
-    allies.forEach(ally => {
-      const relX = (ally.position.x - position.x) * 2 + centerX
-      const relZ = (ally.position.z - position.z) * 2 + centerY
+    if (allies && allies.length > 0) {
+      allies.forEach(ally => {
+        const relX = (ally.position.x - position.x) * 2 + centerX
+        const relZ = (ally.position.z - position.z) * 2 + centerY
 
-      if (relX >= 0 && relX <= size && relZ >= 0 && relZ <= size) {
-        ctx.fillStyle = this.minimap.allyIcon.color
-        ctx.beginPath()
-        ctx.arc(relX, relZ, 4, 0, Math.PI * 2)
-        ctx.fill()
-      }
-    })
+        if (relX >= 0 && relX <= size && relZ >= 0 && relZ <= size) {
+          ctx.fillStyle = this.minimap.allyIcon.color
+          ctx.beginPath()
+          ctx.arc(relX, relZ, 4, 0, Math.PI * 2)
+          ctx.fill()
+        }
+      })
+    }
 
     // Draw compass
     if (this.minimap.showCompass && this.minimap.compassColor) {
