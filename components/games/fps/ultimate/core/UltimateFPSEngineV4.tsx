@@ -166,6 +166,25 @@ import { WEAPON_CATALOG, getWeaponById as getCatalogWeaponById } from '../weapon
 // 🔊 SOUND LIBRARY
 import { SOUND_LIBRARY, getWeaponSound } from '../audio/SoundLibrary'
 
+// 🎯 EVENT ORCHESTRATOR (REFACTORED)
+import { EventOrchestrator } from './EventOrchestrator'
+
+// 🤖 ENEMY AI MANAGER (REFACTORED)
+import { EnemyAIManager } from './EnemyAIManager'
+
+// 💥 COLLISION HANDLER (REFACTORED)
+import { CollisionHandler } from './CollisionHandler'
+
+// 🎮 INPUT MANAGER (REFACTORED)
+import { InputManager } from './InputManager'
+
+// 🗺️ MAP SETUP MANAGER (REFACTORED)
+import { MapSetupManager } from './MapSetupManager'
+
+// 🔄 UPDATE LOOP MANAGER (REFACTORED)
+import { UpdateLoopManager } from './UpdateLoopManager'
+import type { UltimateEnemy } from './UpdateLoopManager'
+
 /**
  * 🎮 GLXY ULTIMATE FPS ENGINE V4
  *
@@ -315,13 +334,15 @@ export class UltimateFPSEngineV4 {
     stats: UltimatePlayerStats
   }
 
-  // Enemies
-  private enemies: UltimateEnemy[] = []
+  // 🤖 REFACTORED: Enemies now managed by EnemyAIManager
+  // Getter delegates to manager
+  private get enemies(): UltimateEnemy[] {
+    return this.enemyAIManager?.getEnemies() || []
+  }
 
   // Game State
   private gameState: UltimateGameState
-  private lastEnemySpawn: number = 0
-  private isSpawningEnemy: boolean = false // Race Condition Schutz
+  // REMOVED: lastEnemySpawn, isSpawningEnemy - now in EnemyAIManager
 
   // Performance Optimization Systems
   private spatialGrid!: SpatialHashGrid
@@ -442,7 +463,25 @@ export class UltimateFPSEngineV4 {
   private grenadeSystem!: GrenadeSystem
   private currentGrenadeType: GrenadeType = GrenadeType.FRAG
   private grenadeHUDRenderer!: GrenadeHUDRenderer
-  
+
+  // 🎯 EVENT ORCHESTRATOR (REFACTORED)
+  private eventOrchestrator!: EventOrchestrator
+
+  // 🤖 ENEMY AI MANAGER (REFACTORED)
+  private enemyAIManager!: EnemyAIManager
+
+  // 💥 COLLISION HANDLER (REFACTORED)
+  private collisionHandler!: CollisionHandler
+
+  // 🎮 INPUT MANAGER (REFACTORED)
+  private inputManager!: InputManager
+
+  // 🗺️ MAP SETUP MANAGER (REFACTORED)
+  private mapSetupManager!: MapSetupManager
+
+  // 🔄 UPDATE LOOP MANAGER (REFACTORED)
+  private updateLoopManager!: UpdateLoopManager
+
   private uiRenderCallback?: (state: GameState, data: any) => void
 
   // Animation
@@ -587,8 +626,8 @@ export class UltimateFPSEngineV4 {
     // 🎯 PHASE 11: Initialize ALL New Systems!
     this.initializePhase7to10Systems(enableMultiplayer)
 
-    // BESTE Variante: Setup WeaponManager Event-System (aus V6)
-    this.setupWeaponManagerEvents()
+    // REFACTORED: Event setup now handled by EventOrchestrator
+    // this.setupWeaponManagerEvents() // REMOVED - now in EventOrchestrator
 
     // ✅ NEU: Initialize Addiction Systems
     this.killRewardSystem = new KillRewardSystem()
@@ -631,7 +670,7 @@ export class UltimateFPSEngineV4 {
 
     // 🎮 Initialize Game Mode Manager
     this.fpsGameModeManager = new FPSGameModeManager(FPSGameMode.FREE_FOR_ALL)
-    this.setupGameModeEvents()
+    // this.setupGameModeEvents() // REMOVED - now in EventOrchestrator
     this.fpsGameModeManager.start() // Start game mode
     console.log('✅ Game Mode Manager initialized and started')
 
@@ -675,6 +714,187 @@ export class UltimateFPSEngineV4 {
     this.setupPlayer().catch(err => console.error('Setup player error:', err))
     this.setupEventListeners()
 
+    // 🤖 REFACTORED: Initialize Enemy AI Manager FIRST (before EventOrchestrator needs enemies)
+    console.log('🤖 Initializing Enemy AI Manager...')
+    this.enemyAIManager = new EnemyAIManager({
+      scene: this.scene,
+      camera: this.camera,
+      player: this.player,
+      physicsEngine: this.physicsEngine,
+      effectsManager: this.effectsManager,
+      audioManager: this.audioManager,
+      modelManager: this.modelManager,
+      behaviorTreeManager: this.behaviorTreeManager,
+      pathfindingManager: this.pathfindingManager,
+      hitboxManager: this.hitboxManager,
+      spatialGrid: this.spatialGrid,
+      boundingBoxSystem: this.boundingBoxSystem,
+      spawnZoneSystem: this.spawnZoneSystem,
+      onPlayerHit: (damage, direction) => this.handlePlayerHit(damage, direction),
+      onEnemyKilled: (enemy, killData) => this.handleKill(killData)
+    })
+    console.log('✅ Enemy AI Manager initialized')
+
+    // 💥 REFACTORED: Initialize Collision Handler
+    console.log('💥 Initializing Collision Handler...')
+    this.collisionHandler = new CollisionHandler({
+      physicsEngine: this.physicsEngine,
+      effectsManager: this.effectsManager,
+      visualEffectsManager: this.visualEffectsManager,
+      audioManager: this.audioManager,
+      hitMarkerSystem: this.hitMarkerSystem,
+      damageIndicatorSystem: this.damageIndicatorSystem,
+      advancedVisualFeedback: this.advancedVisualFeedback,
+      hitboxManager: this.hitboxManager,
+      mapInteractionManager: this.mapInteractionManager,
+      player: this.player,
+      gameState: this.gameState,
+      camera: this.camera,
+      onEnemyHit: (enemy, damage, isHeadshot, hitPoint) => {
+        // Find enemy and apply damage via EnemyAIManager
+        const actualEnemy = this.enemies.find(e => e.id === (enemy as any).characterId)
+        if (actualEnemy) {
+          const killed = this.enemyAIManager.damageEnemy(actualEnemy, damage)
+          if (killed) {
+            this.handleKill({
+              enemy: actualEnemy,
+              weapon: this.weaponManager.getCurrentWeapon(),
+              distance: hitPoint.distanceTo(this.camera.position),
+              isHeadshot,
+              hitPoint
+            })
+          }
+        }
+      },
+      onScreenFlash: (type) => this.showRedScreenFlash()
+    })
+    console.log('✅ Collision Handler initialized')
+
+    // 🗺️ REFACTORED: Initialize Map Setup Manager
+    console.log('🗺️ Initializing Map Setup Manager...')
+    this.mapSetupManager = new MapSetupManager({
+      scene: this.scene,
+      physicsEngine: this.physicsEngine,
+      pathfindingManager: this.pathfindingManager
+    })
+    console.log('✅ Map Setup Manager initialized')
+
+    // 🎮 REFACTORED: Initialize Input Manager
+    console.log('🎮 Initializing Input Manager...')
+    this.inputManager = new InputManager({
+      camera: this.camera,
+      player: this.player,
+      movementController: this.movementController,
+      advancedMovementSystem: this.advancedMovementSystem,
+      footstepManager: this.footstepManager,
+      scopeSystem: this.scopeSystem,
+      grenadeSystem: this.grenadeSystem,
+      abilitySystem: this.abilitySystem,
+      ground: this.ground,
+      scene: this.scene,
+      onShoot: () => this.shoot(),
+      onReload: () => this.reload(),
+      onWeaponSwitch: (index) => this.weaponManager.switchToWeapon(index),
+      onGrenadeThrow: () => this.grenadeSystem.throwGrenade(this.camera.position, this.camera.getWorldDirection(new THREE.Vector3()))
+    })
+    this.inputManager.setupEventListeners()
+    console.log('✅ Input Manager initialized')
+
+    // 🎯 REFACTORED: Initialize Event Orchestrator (replaces all individual event setups)
+    console.log('🎯 Initializing Event Orchestrator...')
+    this.eventOrchestrator = new EventOrchestrator({
+      weaponManager: this.weaponManager,
+      progressionManager: this.progressionManager,
+      mapManager: this.mapManager,
+      audioManager: this.audioManager,
+      uiManager: this.uiManager,
+      networkManager: this.networkManager,
+      abilitySystem: this.abilitySystem,
+      weaponProgressionManager: this.weaponProgressionManager,
+      fpsGameModeManager: this.fpsGameModeManager,
+      gameFlowManager: this.gameFlowManager,
+      effectsManager: this.effectsManager,
+      visualEffectsManager: this.visualEffectsManager,
+      recoilManager: this.recoilManager,
+      dynamicCrosshair: this.dynamicCrosshair,
+      player: this.player,
+      gameState: this.gameState,
+      enemies: this.enemies,
+      camera: this.camera,
+      ground: this.ground,
+      obstacles: this.obstacles,
+      weaponModel: this.weaponModel,
+      selectedCharacter: this.selectedCharacter,
+      reserveAmmo: this.reserveAmmo,
+      onEnemyDeath: (enemy) => this.handleEnemyDeath(enemy),
+      onKill: (data) => this.handleKill(data),
+      onEnvironmentHit: (intersection) => this.handleEnvironmentHit(intersection),
+      onBulletHit: (event) => this.handleBulletHit(event),
+      onUpdateHUD: () => this.updateHUD(),
+      onUpdateScoreboard: () => this.updateScoreboard(),
+      onCreateWeaponModel: () => this.createWeaponModel(),
+      onNetworkStateUpdate: (data) => this.handleNetworkStateUpdate(data),
+      onSetupMapInScene: (mapData) => this.mapSetupManager.setupMapInScene(mapData),
+      onSetSelectedCharacter: (character) => { this.selectedCharacter = character }
+    })
+    // Initialize all event listeners through orchestrator
+    this.eventOrchestrator.initializeAllEvents()
+    console.log('✅ Event Orchestrator initialized with all events')
+
+    // 🔄 REFACTORED: Initialize Update Loop Manager (manages entire game loop)
+    console.log('🔄 Initializing Update Loop Manager...')
+    this.updateLoopManager = new UpdateLoopManager({
+      clock: this.clock,
+      camera: this.camera,
+      scene: this.scene,
+      renderer: this.renderer,
+      gameState: this.gameState,
+      player: this.player,
+      enemies: this.enemies,
+      selectedCharacter: this.selectedCharacter,
+      modelManager: this.modelManager,
+      inputManager: this.inputManager,
+      spatialGrid: this.spatialGrid,
+      boundingBoxSystem: this.boundingBoxSystem,
+      physicsEngine: this.physicsEngine,
+      effectsManager: this.effectsManager,
+      abilitySystem: this.abilitySystem,
+      enemyAIManager: this.enemyAIManager,
+      hitMarkerSystem: this.hitMarkerSystem,
+      damageIndicatorSystem: this.damageIndicatorSystem,
+      dynamicCrosshair: this.dynamicCrosshair,
+      killStreakDisplay: this.killStreakDisplay,
+      lowHealthVignette: this.lowHealthVignette,
+      recoilManager: this.recoilManager,
+      hitboxManager: this.hitboxManager,
+      advancedVisualFeedback: this.advancedVisualFeedback,
+      fpsGameModeManager: this.fpsGameModeManager,
+      mapInteractionManager: this.mapInteractionManager,
+      killFeedManager: this.killFeedManager,
+      grenadeSystem: this.grenadeSystem,
+      fireDamageManager: this.fireDamageManager,
+      sprintFOV: this.sprintFOV,
+      scopeSystem: this.scopeSystem,
+      landingShake: this.landingShake,
+      movementController: this.movementController,
+      footstepManager: this.footstepManager,
+      movementFeelManager: this.movementFeelManager,
+      audioManager: this.audioManager,
+      overlayCanvas: this.overlayCanvas,
+      onEnemyDeath: (enemy) => this.handleEnemyDeath(enemy),
+      onUpdateHUD: () => this.updateHUD(),
+      abilityHUDRenderer: this.abilityHUDRenderer,
+      minimapRenderer: this.minimapRenderer,
+      ammoHUDRenderer: this.ammoHUDRenderer,
+      ammoSystem: this.ammoSystem,
+      grenadeHUDRenderer: this.grenadeHUDRenderer,
+      currentGrenadeType: this.currentGrenadeType,
+      scopeOverlayRenderer: this.scopeOverlayRenderer,
+      showScoreboard: this.showScoreboard,
+      scoreboardManager: this.scoreboardManager
+    })
+    console.log('✅ Update Loop Manager initialized')
+
     // ✅ KRITISCH: Render-Schleife starten (verhindert schwarzen Bildschirm!)
     this.start()
 
@@ -691,14 +911,14 @@ export class UltimateFPSEngineV4 {
       // 🎮 GAME FLOW MANAGER (Must be first!)
       console.log('🎮 Initializing Game Flow Manager...')
       this.gameFlowManager = new GameFlowManager()
-      this.setupGameFlowEvents()
+      // this.setupGameFlowEvents() // REMOVED - now in EventOrchestrator
       console.log('✅ Game Flow Manager Ready')
 
       // 🏆 PHASE 7: Progression Manager
       console.log('🏆 Initializing Progression System...')
       const playerProfile = createPlayerProfile('player-1', 'Player')
       this.progressionManager = new ProgressionManager(playerProfile)
-      this.setupProgressionEvents()
+      // this.setupProgressionEvents() // REMOVED - now in EventOrchestrator
       console.log('✅ Progression System Ready')
 
       // 🗺️ PHASE 8: Map System
@@ -706,7 +926,7 @@ export class UltimateFPSEngineV4 {
       this.mapLoader = new MapLoader()
       this.mapManager = new MapManager()
       this.glbMapLoader = new GLBMapsLoader()
-      this.setupMapEvents()
+      // this.setupMapEvents() // REMOVED - now in EventOrchestrator
       console.log('✅ Map System Ready (with GLB support!)')
 
       // 🔊 PHASE 9: Audio System
@@ -716,7 +936,7 @@ export class UltimateFPSEngineV4 {
         musicVolume: 0.5,
         sfxVolume: 0.8
       })
-      this.setupAudioEvents()
+      // this.setupAudioEvents() // REMOVED - now in EventOrchestrator
       console.log('✅ Audio System Ready')
       
       // 🎵 Connect Hit Sound Manager to Audio Manager
@@ -733,7 +953,7 @@ export class UltimateFPSEngineV4 {
         theme: 'glxy',
         layout: 'default'
       })
-      this.setupUIEvents()
+      // this.setupUIEvents() // REMOVED - now in EventOrchestrator
       console.log('✅ UI System Ready')
 
       // 🌐 PHASE 10: Network Manager (Optional)
@@ -745,7 +965,7 @@ export class UltimateFPSEngineV4 {
           clientSidePrediction: true,
           lagCompensationEnabled: true
         })
-        this.setupNetworkEvents()
+        // this.setupNetworkEvents() // REMOVED - now in EventOrchestrator
         console.log('✅ Network System Ready')
       }
 
@@ -761,22 +981,22 @@ export class UltimateFPSEngineV4 {
       
       // Weapon Progression Manager
       this.weaponProgressionManager = new WeaponProgressionManager()
-      this.setupWeaponProgressionEvents()
-      
+      // this.setupWeaponProgressionEvents() // REMOVED - now in EventOrchestrator
+
       // Behavior Tree Manager
       this.behaviorTreeManager = new BehaviorTreeManager()
-      
+
       // 🧭 NEW: Pathfinding Manager
       this.pathfindingManager = new PathfindingManager()
       console.log('✅ Pathfinding Manager initialized (waiting for map)')
-      
+
       // Select Starter Character
       this.selectedCharacter = STARTER_CHARACTERS[0] // Tactical Operator
       this.abilitySystem.setCharacter(this.selectedCharacter)
       this.abilitySystem.applyPassiveAbility()
-      
+
       // ⚡ NEW: Setup Ability Callbacks
-      this.setupAbilityCallbacks()
+      // this.setupAbilityCallbacks() // REMOVED - now in EventOrchestrator
       
       console.log(`✅ Character Selected: ${this.selectedCharacter.name}`)
       console.log(`✅ NEW FEATURES Initialized: Character System, Weapon Progression, Advanced AI!`)
@@ -1217,8 +1437,8 @@ export class UltimateFPSEngineV4 {
       // Update game state
       this.gameState.currentMap = event.data.mapId
 
-      // Setup map in scene
-      this.setupMapInScene(event.data)
+      // Setup map in scene via MapSetupManager
+      this.mapSetupManager.setupMapInScene(event.data)
 
       // Play ambient sounds for map
       const mapData = event.data
@@ -1460,81 +1680,6 @@ export class UltimateFPSEngineV4 {
         this.setupBasicMap()
       }
     }
-  }
-
-  /**
-   * Setup map in Three.js scene
-   */
-  private setupMapInScene(mapData: any): void {
-    // Clear existing map objects
-    this.clearMap()
-
-    // Create ground from map data
-    if (mapData.geometry?.floors && mapData.geometry.floors.length > 0) {
-      const floor = mapData.geometry.floors[0]
-      const groundGeometry = new THREE.BoxGeometry(
-        floor.size.x,
-        floor.thickness,
-        floor.size.z
-      )
-      const groundMaterial = new THREE.MeshStandardMaterial({
-        color: 0x4a4a4a,
-        roughness: 0.8,
-        metalness: 0.2
-      })
-      this.ground = new THREE.Mesh(groundGeometry, groundMaterial)
-      this.ground.position.set(
-        floor.position.x,
-        floor.position.y,
-        floor.position.z
-      )
-      this.ground.receiveShadow = true
-      this.scene.add(this.ground)
-
-      // Add to physics
-      const groundPhysics = createPhysicsObject(
-        this.ground,
-        PhysicsObjectType.STATIC,
-        PHYSICS_MATERIALS.CONCRETE
-      )
-      this.physicsEngine.addObject(groundPhysics)
-    }
-
-    // Create walls and obstacles from map geometry
-    if (mapData.geometry?.walls) {
-      for (const wall of mapData.geometry.walls) {
-        const wallGeometry = new THREE.BoxGeometry(
-          wall.size.x,
-          wall.size.y,
-          wall.size.z
-        )
-        const wallMaterial = new THREE.MeshStandardMaterial({
-          color: 0x8b7355,
-          roughness: 0.9
-        })
-        const wallMesh = new THREE.Mesh(wallGeometry, wallMaterial)
-        wallMesh.position.copy(wall.position)
-        wallMesh.castShadow = true
-        wallMesh.receiveShadow = true
-        this.scene.add(wallMesh)
-        this.obstacles.push(wallMesh)
-
-        // Add to physics
-        const wallPhysics = createPhysicsObject(
-          wallMesh,
-          PhysicsObjectType.STATIC,
-          PHYSICS_MATERIALS.CONCRETE
-        )
-        this.physicsEngine.addObject(wallPhysics)
-      }
-    }
-
-    // Update lighting based on map environment
-    if (mapData.environment) {
-      this.updateEnvironmentLighting(mapData.environment)
-    }
-
-    console.log(`✅ Map "${mapData.name}" setup in scene`)
   }
 
   /**
@@ -2385,200 +2530,13 @@ export class UltimateFPSEngineV4 {
   }
 
   /**
-   * ✅ NEU: Update Enemy Health Bars (immer zur Kamera gerichtet)
-   */
-  private updateEnemyHealthBars(): void {
-    for (const enemy of this.enemies) {
-      if (enemy.healthBar) {
-        // Health Bar immer zur Kamera rotieren
-        enemy.healthBar.lookAt(this.camera.position)
-        
-        // Health Bar aktualisieren
-        updateHealthBar(enemy.healthBar, enemy.health, enemy.maxHealth)
-      }
-    }
-  }
-
-  /**
    * BESTE Variante: Event-basierte Hit-Detection mit allen Daten (aus V6)
    */
-  private handleBulletHit(event: {
-    point: THREE.Vector3
-    normal: THREE.Vector3
-    object: THREE.Object3D
-    damage: number
-    weapon: BaseWeapon
-  }): void {
-    // ✨ NEW: Visual Effects Manager - Impact Effects
-    const impactType = event.object?.userData?.type === 'ENEMY' ? 'blood' : 'concrete'
-    if (impactType === 'blood') {
-      // Blood effect for enemy hits
-      this.visualEffectsManager.createBloodEffect(event.point, event.normal)
-      this.effectsManager.spawnBloodSplatter(event.point, event.normal)
-      this.audioManager?.playSound('impact_flesh', event.point)
-    } else {
-      // Surface impact for environment
-      const material = event.object?.userData?.material || 'concrete'
-      this.visualEffectsManager.createImpactEffect(
-        event.point,
-        event.normal,
-        material as 'metal' | 'concrete' | 'wood'
-      )
-      this.audioManager?.playSound('impact_concrete', event.point)
-    }
-    
-    // ✅ NEU: Damage anwenden mit Enemy Health System
-    if (event.object?.userData?.type === 'ENEMY') {
-      const enemyId = event.object.userData.id
-      const enemy = this.enemies.find(e => e.id === enemyId)
-      
-      if (enemy && enemy.health > 0) {
-        // 🎯 NEW: PRÄZISE Hitbox Detection statt Simple Y-Check
-        const shootDirection = event.point.clone().sub(this.camera.position).normalize()
-        const hitResult = this.hitboxManager.raycastCharacter(
-          enemyId,
-          this.camera.position,
-          shootDirection
-        )
-        
-        const damageMultiplier = hitResult.hit ? hitResult.damageMultiplier : 1.0
-        const isHeadshot = hitResult.zone === HitboxZone.HEAD
-        
-        // 💥 NEW: Apply Ammo Type Damage Modifier
-        const ammoDamage = this.ammoSystem.calculateDamage(event.damage)
-        const finalDamage = ammoDamage * damageMultiplier
-        
-        // Log für Debug (optional)
-        if (hitResult.hit) {
-          console.log(`🎯 Hit Zone: ${hitResult.zone} (${damageMultiplier}x damage)`)
-        }
-        
-        // 🎨 NEW: Show Damage Number
-        this.advancedVisualFeedback.showDamageNumber(finalDamage, event.point, isHeadshot)
-        
-        // 🎵 NEW: Play Hit Sound
-        if (isHeadshot) {
-          this.hitSoundManager.playHitSound({
-            type: HitSoundType.HEADSHOT,
-            volume: 1.0,
-            damage: finalDamage
-          })
-        } else {
-          this.hitSoundManager.playHitSound({
-            type: HitSoundType.BODY,
-            volume: 1.0,
-            damage: finalDamage
-          })
-        }
-        
-        // ✅ Enemy Health reduzieren
-        enemy.health = Math.max(0, enemy.health - finalDamage)
-        
-        // 💥 NEW: Apply Fire Damage (Incendiary Ammo)
-        const currentAmmo = this.ammoSystem.getCurrentType()
-        const ammoProps = AMMO_PROPERTIES[currentAmmo]
-        if (ammoProps.specialEffect === 'fire' && ammoProps.effectDuration && ammoProps.effectDamage) {
-          this.fireDamageManager.applyFireDamage(enemy.id, ammoProps.effectDamage, ammoProps.effectDuration)
-        }
-        
-        // ✅ Health Bar aktualisieren
-        if (enemy.healthBar) {
-          updateHealthBar(enemy.healthBar, enemy.health, enemy.maxHealth)
-        }
-        
-        // ✅ Hit Marker zeigen
-        this.hitMarkerSystem.addHitMarker(isHeadshot, false)
-        
-        // Game State Update
-        this.gameState.shotsHit++
-        this.gameState.damageDealt += finalDamage
-        this.gameState.accuracy = (this.gameState.shotsHit / this.gameState.shotsFired) * 100
-        
-        if (isHeadshot) {
-          this.gameState.headshots++
-        }
-        
-        // ✅ Kill-Handling wenn Health <= 0
-        if (enemy.health <= 0) {
-          // ✅ Kill Hit Marker
-          this.hitMarkerSystem.addHitMarker(isHeadshot, true)
-          
-          // 🎵 NEW: Play Kill Confirm Sound
-          this.hitSoundManager.playHitSound({
-            type: HitSoundType.KILL,
-            volume: 1.0
-          })
-          
-          // 🎨 NEW: Kill Effect
-          this.advancedVisualFeedback.createKillEffect(enemy.mesh.position, isHeadshot)
-          
-          // ✅ NEU: Dopamin-System für Kill-Rewards
-          const killData: KillData = {
-            victim: enemy,
-            weapon: event.weapon,
-            distance: event.point.distanceTo(this.camera.position),
-            isHeadshot: isHeadshot,
-            isWallbang: false, // TODO: Implementiere Wallbang-Detection
-            isMidair: false, // TODO: Check if player is in air
-            isNoScope: !this.player.stats.isAiming
-          }
-          
-          const dopamineEvent = this.killRewardSystem.registerKill(killData)
-          
-          // ✅ Zeige Dopamin-Effekte
-          this.showDopamineEffects(dopamineEvent)
-          
-          // ✅ Progression Update mit Dopamin-Score
-          this.progressionManager?.awardXP(XPSource.KILL, dopamineEvent.score)
-          if (killData.isHeadshot) {
-            this.progressionManager?.awardXP(XPSource.HEADSHOT_KILL, 50)
-          }
-          
-          // 🆕 NEW: Weapon Progression Update
-          const weaponKillEvent: WeaponKillEvent = {
-            weaponId: event.weapon.getData().id,
-            isHeadshot: killData.isHeadshot,
-            distance: killData.distance,
-            isHipfire: !this.player.stats.isAiming,
-            isADS: this.player.stats.isAiming,
-            isCrouching: this.player.stats.isCrouching,
-            isSliding: false, // TODO: Add sliding detection
-            isMultikill: false, // TODO: Add multikill detection
-            xpEarned: dopamineEvent.score
-          }
-          this.weaponProgressionManager.registerKill(weaponKillEvent)
-          
-          // Update weapon mastery
-          this.weaponProgressionManager.updateMastery(event.weapon.getData().id)
-          
-          // 🆕 NEW: Charge Ultimate Ability
-          this.abilitySystem.chargeUltimate(dopamineEvent.score, 'kill')
-          
-          // 🎮 NEW: Register Kill in Game Mode
-          this.fpsGameModeManager.registerKill('player', enemy.id)
-          
-          // ✅ Game State Score Update (Dopamin-Score verwenden)
-          this.gameState.score += dopamineEvent.score
-          
-          // BESTE Kill-Handling (Cleanup & Game State)
-          this.handleKill({
-            enemy: enemy,
-            weapon: event.weapon,
-            distance: event.point.distanceTo(this.camera.position),
-            isHeadshot: isHeadshot,
-            hitPoint: event.point
-          })
-        } else {
-          // ✅ Damage über AIController (für AI-Reaktion)
-          enemy.aiController.takeDamage(finalDamage, event.point)
-        }
-      }
-    }
+  // 💥 REFACTORED: Delegate to CollisionHandler
+  private handleBulletHit(event: any): void {
+    this.collisionHandler.handleBulletHit(event)
   }
 
-  /**
-   * BESTE Variante: Environment Hit Handling (aus V6)
-   */
   private handleEnvironmentHit(intersection: THREE.Intersection): void {
     // ✨ NEW: Visual Effects Manager - Impact Effect
     const material = intersection.object.userData.material || 'concrete'
@@ -2605,38 +2563,6 @@ export class UltimateFPSEngineV4 {
     const soundId = material === 'metal' ? 'impact_metal' : 
                     material === 'wood' ? 'impact_wood' : 'impact_concrete'
     this.audioManager?.playSound(soundId, intersection.point)
-  }
-
-  /**
-   * BESTE Variante: AI Shoot Handling (aus V6)
-   */
-  private handleAIShoot(enemy: UltimateEnemy, shootData: AIShootData): void {
-    // Raycast über PhysicsEngine (BESTE Variante)
-    const rayResult = this.physicsEngine.raycast(
-      shootData.origin,
-      shootData.direction,
-      1000, // max range
-      [CollisionLayer.PLAYER] // nur Player-Layer
-    )
-    
-    if (rayResult.hit) {
-      // Player getroffen
-      // ✅ Damage Indicator mit Richtung
-      const directionToPlayer = new THREE.Vector3()
-        .subVectors(this.player.position, shootData.origin)
-        .normalize()
-      this.handlePlayerHit(shootData.damage || 10, directionToPlayer)
-      
-      // Effects (BESTE Variante)
-      this.effectsManager.spawnBloodSplatter(
-        rayResult.point,
-        rayResult.normal || new THREE.Vector3(0, 1, 0)
-      )
-    }
-    
-    // Muzzle Flash für AI
-    this.effectsManager.spawnMuzzleFlash(shootData.origin, shootData.direction)
-    this.audioManager?.playSound('enemy_fire', shootData.origin)
   }
 
   /**
@@ -3090,275 +3016,7 @@ export class UltimateFPSEngineV4 {
    */
   public update = (): void => {
     this.animationFrameId = requestAnimationFrame(this.update)
-
-    // ✅ KRITISCH: Rendering IMMER (auch wenn pausiert)
-    // Game-Updates nur wenn aktiv
-    if (this.gameState.isGameActive && !this.gameState.isPaused) {
-      const deltaTime = Math.min(this.clock.getDelta(), 0.1) // Clamp to prevent physics explosion
-      this.gameState.roundTime += deltaTime
-
-      // Animation Mixers Update (nur für sichtbare Models)
-      this.modelManager.updateAnimationMixers(deltaTime, this.camera)
-
-      // Update player movement
-      this.updatePlayerMovement(deltaTime)
-      
-      // PERFORMANCE: Spatial Grid für Player-Updates
-      this.spatialGrid.update({
-        id: 'player',
-        position: this.player.position,
-        radius: 1.5,
-        type: 'player',
-        data: this.player
-      })
-      
-      // Bounding Box Update für Player
-      this.boundingBoxSystem.updateBox('player', this.player.mesh)
-
-      // Update physics
-      this.physicsEngine.update(deltaTime)
-
-      // Update effects
-      this.effectsManager.update(deltaTime)
-
-      // ⚡ NEW: Update Ability System with Game State
-      if (this.abilitySystem) {
-        this.abilitySystem.setGameState(
-          this.player.mesh,
-          {
-            current: this.player.stats.health,
-            max: this.player.stats.maxHealth,
-            armor: this.player.stats.armor
-          },
-          this.enemies.map(e => ({
-            mesh: e.mesh,
-            health: e.health,
-            id: e.id
-          }))
-        )
-      }
-      
-      // 🆕 NEW: Update Character Ability System
-      this.abilitySystem.update(deltaTime)
-      
-      // 🆕 NEW: Charge Ultimate over time (if character has passive charge)
-      if (this.selectedCharacter.abilities.ultimate.chargeOverTime > 0) {
-        this.abilitySystem.chargeUltimate(deltaTime, 'time')
-      }
-
-      // Update enemies
-      this.updateEnemies(deltaTime)
-      
-      // ✅ NEU: Update Enemy Health Bars (immer zur Kamera gerichtet)
-      this.updateEnemyHealthBars()
-      
-      // ✅ NEU: Update & Render Hit Markers & Damage Indicators
-      this.hitMarkerSystem.update(deltaTime)
-      this.damageIndicatorSystem.update(deltaTime)
-      
-      // 💡 NEW: Update Quick Features
-      this.dynamicCrosshair.update(deltaTime)
-      this.killStreakDisplay.update(deltaTime)
-      this.lowHealthVignette.update(this.player.stats.health / this.player.stats.maxHealth, deltaTime)
-      
-      // 🎯 NEW: Update Recoil System (Recovery)
-      this.recoilManager.update(deltaTime)
-      
-      // 🎯 NEW: Update Hitbox System
-      this.hitboxManager.update()
-      
-      // 🎨 NEW: Update Advanced Visual Feedback
-      this.advancedVisualFeedback.update(deltaTime)
-      
-      // 🎮 NEW: Update Game Mode
-      this.fpsGameModeManager.update(deltaTime)
-      
-      // 🗺️ NEW: Update Map Interactions
-      this.mapInteractionManager.update(deltaTime)
-      
-      // 📋 NEW: Update Kill Feed
-      this.killFeedManager.update()
-      
-      // 💣 NEW: Update Grenades
-      this.grenadeSystem.update(deltaTime)
-      
-      // 💥 NEW: Update Fire Damage
-      this.fireDamageManager.update((entityId, damage) => {
-        const enemy = this.enemies.find(e => e.id === entityId)
-        if (enemy && enemy.health > 0) {
-          enemy.health = Math.max(0, enemy.health - damage)
-          
-          // Update health bar
-          if (enemy.healthBar) {
-            updateHealthBar(enemy.healthBar, enemy.health, enemy.maxHealth)
-          }
-          
-          // Check if killed by fire
-          if (enemy.health <= 0) {
-            this.handleEnemyDeath(enemy)
-          }
-        }
-      })
-      
-      // 💡 NEW: Sprint FOV
-      let newFOV = this.sprintFOV.update(deltaTime)
-      
-      // 🔭 NEW: Scope FOV (overrides sprint FOV if scoped)
-      const scopeFOV = this.scopeSystem.update(deltaTime)
-      if (this.scopeSystem.getIsScoped()) {
-        newFOV = scopeFOV
-      }
-      
-      if (this.camera.fov !== newFOV) {
-        this.camera.fov = newFOV
-        this.camera.updateProjectionMatrix()
-      }
-      
-      // 💡 NEW: Landing Shake
-      this.landingShake.update(deltaTime)
-      const isGrounded = this.movementController.isGrounded
-      if (isGrounded && !this.lastGroundedState) {
-        // Just landed
-        const velocity = this.movementController.velocity
-        this.landingShake.trigger(velocity.y)
-        
-        // 👣 NEW: Landing Sound
-        if (this.scene && this.scene.children && Array.isArray(this.scene.children) && this.scene.children.length > 0) {
-          const surface = this.footstepManager.detectSurface(this.player.position, this.scene)
-          this.footstepManager.playLand(surface, this.player.position, Math.min(Math.abs(velocity.y) / 10, 1))
-        }
-      }
-      this.lastGroundedState = isGrounded
-      
-      // Apply landing shake to camera
-      if (this.landingShake.isShaking()) {
-        const shakeOffset = this.landingShake.getShakeOffset()
-        this.camera.rotation.x += shakeOffset.y
-        this.camera.rotation.y += shakeOffset.x
-      }
-      
-      // 🏃 NEW: Apply Camera Bob
-      const cameraBobOffset = this.movementFeelManager.getCameraBobOffset()
-      const originalCameraY = this.camera.position.y
-      this.camera.position.y += cameraBobOffset.y
-      this.camera.position.x += cameraBobOffset.x
-      
-      // Render Overlay (Hit Markers & Damage Indicators + Quick Features)
-      const ctx = this.overlayCanvas.getContext('2d')
-      if (ctx) {
-        ctx.clearRect(0, 0, this.overlayCanvas.width, this.overlayCanvas.height)
-        
-        // Hit Markers & Damage Indicators
-        this.hitMarkerSystem.render()
-        this.damageIndicatorSystem.render()
-        
-        // 💡 NEW: Render Quick Features
-        const centerX = this.overlayCanvas.width / 2
-        const centerY = this.overlayCanvas.height / 2
-        
-        // Dynamic Crosshair
-        this.dynamicCrosshair.render(ctx, centerX, centerY)
-        
-        // Kill Streak Display
-        this.killStreakDisplay.render(ctx, centerX, centerY)
-        
-        // Low HP Vignette
-        this.lowHealthVignette.render(ctx, this.overlayCanvas.width, this.overlayCanvas.height)
-        
-        // 🎨 NEW: Render Advanced Visual Feedback (Screen Flash, Damage Numbers)
-        this.advancedVisualFeedback.render(ctx, this.overlayCanvas.width, this.overlayCanvas.height)
-        
-        // ⚡ NEW: Render Ability HUD
-        const abilityHUDData: AbilityHUDData = {
-          activeName: this.selectedCharacter.abilities.active.name,
-          activeCooldown: this.abilitySystem.getActiveAbilityState()?.cooldownRemaining || 0,
-          activeMaxCooldown: this.selectedCharacter.abilities.active.cooldown,
-          activeCharges: this.abilitySystem.getActiveAbilityState()?.chargesRemaining || 1,
-          activeKey: 'E',
-          ultimateName: this.selectedCharacter.abilities.ultimate.name,
-          ultimateCharge: (this.abilitySystem.getUltimateAbilityState()?.charge || 0) / this.selectedCharacter.abilities.ultimate.chargeRequired * 100,
-          ultimateKey: 'Q',
-          ultimateReady: this.abilitySystem.getUltimateAbilityState()?.isReady || false
-        }
-        this.abilityHUDRenderer.render(ctx, abilityHUDData)
-        
-        // ⚡ NEW: Render Minimap
-        const minimapData: MinimapData = {
-          playerPosition: this.player.position,
-          playerRotation: this.camera.rotation.y,
-          enemies: this.enemies.map(e => ({
-            position: e.mesh.position,
-            distance: e.mesh.position.distanceTo(this.player.position)
-          })),
-          mapSize: { width: 200, height: 200 }
-        }
-        this.minimapRenderer.render(ctx, minimapData)
-        
-        // 📋 NEW: Render Kill Feed
-        this.killFeedManager.render(ctx, this.overlayCanvas.width, this.overlayCanvas.height)
-        
-        // 💥 NEW: Render Ammo Type HUD (bottom-left)
-        const ammoState = this.ammoSystem.getState()
-        this.ammoHUDRenderer.render(ctx, ammoState, 20, this.overlayCanvas.height - 100)
-        
-        // 💣 NEW: Render Grenade HUD (bottom-left, below ammo)
-        const grenadeState: GrenadeHUDState = {
-          currentType: this.currentGrenadeType,
-          inventory: this.grenadeSystem.getInventory()
-        }
-        this.grenadeHUDRenderer.render(ctx, grenadeState, 20, this.overlayCanvas.height - 240)
-        
-        // 🔭 NEW: Render Scope Overlay (if scoped with overlay)
-        if (this.scopeSystem.hasOverlay()) {
-          this.scopeOverlayRenderer.render(
-            ctx,
-            this.overlayCanvas.width,
-            this.overlayCanvas.height,
-            this.scopeSystem.getZoomLevel()
-          )
-        }
-        
-        // 📊 NEW: Render Scoreboard (if shown)
-        if (this.showScoreboard) {
-          this.scoreboardManager.render(ctx, this.overlayCanvas.width, this.overlayCanvas.height)
-        }
-      }
-
-      // Update audio listener position
-      this.audioManager?.updateListener(
-        this.camera.position,
-        this.camera.getWorldDirection(new THREE.Vector3()),
-        new THREE.Vector3(0, 1, 0)
-      )
-
-      // Spawn enemies (mit Race Condition Schutz)
-      if (!this.isSpawningEnemy && Date.now() - this.lastEnemySpawn > 3000) {
-        this.isSpawningEnemy = true
-        this.spawnEnemy()
-          .then(() => {
-            this.lastEnemySpawn = Date.now()
-            this.isSpawningEnemy = false
-          })
-          .catch((err) => {
-            console.error('Spawn enemy error:', err)
-            this.isSpawningEnemy = false
-          })
-      }
-
-      // Update HUD
-      this.updateHUD()
-    } else {
-      // Auch wenn pausiert: Hit Markers & Damage Indicators rendern
-      const ctx = this.overlayCanvas.getContext('2d')
-      if (ctx) {
-        ctx.clearRect(0, 0, this.overlayCanvas.width, this.overlayCanvas.height)
-        this.hitMarkerSystem.render()
-        this.damageIndicatorSystem.render()
-      }
-    }
-
-    // ✅ KRITISCH: Rendering IMMER (auch wenn pausiert)
-    this.renderer.render(this.scene, this.camera)
+    this.updateLoopManager.update()
   }
 
   /**
@@ -3438,901 +3096,19 @@ export class UltimateFPSEngineV4 {
     flash()
   }
 
-  /**
-   * ✅ PROFESSIONAL: Update Player Movement mit korrektem MovementController-Integration + Advanced Movement
-   */
-  private updatePlayerMovement(deltaTime: number): void {
-    // Get movement input
-    const forward = this.keys.has('KeyW') || this.keys.has('ArrowUp')
-    const backward = this.keys.has('KeyS') || this.keys.has('ArrowDown')
-    const left = this.keys.has('KeyA') || this.keys.has('ArrowLeft')
-    const right = this.keys.has('KeyD') || this.keys.has('ArrowRight')
-    const jump = this.keys.has('Space')
-    const crouch = this.keys.has('KeyC') || this.keys.has('ControlLeft')
-    const sprint = this.keys.has('ShiftLeft')
-
-    // ✅ BESTE Variante: MovementController richtig nutzen
-    // Update MovementController (für Stamina, Gravity, etc.)
-    // Safety check: Only update if scene is ready
-    if (this.scene && this.scene.children && Array.isArray(this.scene.children) && this.scene.children.length > 0) {
-      this.movementController.update(deltaTime)
-    }
-
-    // ✅ NEU: Advanced Movement System Input
-    const movementInput: MovementInput = {
-      forward,
-      backward,
-      left,
-      right,
-      jump,
-      crouch,
-      sprint
-    }
-
-    // ✅ NEU: Advanced Movement System (Wallrun, Sliding, Bunny Hop)
-    const advancedResult = this.advancedMovementSystem.update(deltaTime, movementInput, this.player.position)
-
-    // ✅ Movement Direction berechnen (Camera-Relativ)
-    const direction = new THREE.Vector3()
-    if (forward) direction.z -= 1
-    if (backward) direction.z += 1
-    if (left) direction.x -= 1
-    if (right) direction.x += 1
-
-    // Normalize direction
-    if (direction.length() > 0 || advancedResult.position.length() > 0) {
-      direction.normalize()
-      
-      // Camera-Relative Movement (wichtig für FPS!)
-      const cameraDirection = new THREE.Vector3()
-      this.camera.getWorldDirection(cameraDirection)
-      cameraDirection.y = 0 // Keine vertikale Bewegung
-      cameraDirection.normalize()
-      
-      // Right vector für Strafe
-      const rightVector = new THREE.Vector3()
-      rightVector.crossVectors(cameraDirection, new THREE.Vector3(0, 1, 0)).normalize()
-      
-      // Final direction (Forward/Backward + Left/Right)
-      const finalDirection = new THREE.Vector3()
-      finalDirection.addScaledVector(cameraDirection, -direction.z) // Forward/Backward
-      finalDirection.addScaledVector(rightVector, direction.x) // Left/Right
-      finalDirection.normalize()
-      
-      // ✅ Kombiniere Standard Movement + Advanced Movement
-      if (advancedResult.state.isSliding || advancedResult.state.isWallRunning) {
-        // Advanced Movement hat Priorität
-        this.player.position.add(advancedResult.position)
-      } else {
-        // Standard Movement
-        this.movementController.move(finalDirection, deltaTime)
-        const velocity = this.movementController.velocity
-        this.player.position.add(new THREE.Vector3(velocity.x, velocity.y, velocity.z).multiplyScalar(deltaTime))
-      }
-      
-      // 🗺️ MAP BOUNDARIES - Verhindert Rausfliegen aus der Map
-      const MAP_SIZE = 50 // Map ist 100x100 (von -50 bis +50)
-      this.player.position.x = Math.max(-MAP_SIZE, Math.min(MAP_SIZE, this.player.position.x))
-      this.player.position.z = Math.max(-MAP_SIZE, Math.min(MAP_SIZE, this.player.position.z))
-      
-      // Boden-Check: Verhindert Durchfallen
-      if (this.player.position.y < 0.5) {
-        this.player.position.y = 0.5
-        this.movementController.velocity.y = 0
-      }
-      
-      // 🏃 NEW: Update Movement Feel (Camera Bob)
-      const isGroundedNow = this.movementController.isGrounded
-      const movementResult = this.movementFeelManager.processMovement(
-        finalDirection,
-        isGroundedNow,
-        deltaTime
-      )
-      
-      // ✅ Apply Advanced Movement Effects (Camera Tilt, etc.)
-      advancedResult.effects.forEach(effect => {
-        if (effect.type === 'cameraTilt' && effect.angle) {
-          // TODO: Implementiere Camera Tilt
-        }
-      })
-      
-      // ✅ Camera & Mesh Position synchronisieren
-      this.camera.position.copy(this.player.position)
-      this.player.mesh.position.copy(this.player.position)
-      
-      // ✅ Stamina vom MovementController übernehmen
-      this.player.stats.stamina = this.movementController.stamina
-      
-      // 👣 NEW: Professional Footstep System
-      const isMoving = finalDirection.length() > 0
-      if (isMoving && isGroundedNow && this.scene && this.scene.children && Array.isArray(this.scene.children) && this.scene.children.length > 0) {
-        const surface = this.footstepManager.detectSurface(this.player.position, this.scene)
-        let movementType: MovementType
-        
-        if (this.player.stats.isSprinting) {
-          movementType = MovementType.SPRINT
-        } else if (this.player.stats.isCrouching) {
-          movementType = MovementType.CROUCH
-        } else {
-          movementType = MovementType.WALK
-        }
-        
-        this.footstepManager.update(
-          isMoving,
-          movementType,
-          surface,
-          this.player.position,
-          0.5
-        )
-      }
-    } else {
-      // ✅ Keine Bewegung - MovementController stoppen
-      this.movementController.stop()
-    }
-    
-    // ✅ Jump Handling
-    if (jump && this.movementController.isGrounded) {
-      // 👣 NEW: Jump Sound
-      if (this.scene && this.scene.children && Array.isArray(this.scene.children) && this.scene.children.length > 0) {
-        const surface = this.footstepManager.detectSurface(this.player.position, this.scene)
-        this.footstepManager.playJump(surface, this.player.position)
-      }
-      this.movementController.jump()
-    }
-
-    // ✅ Weapon sway and recoil recovery
-    if (this.weaponModel) {
-      this.weaponModel.rotation.x = THREE.MathUtils.lerp(
-        this.weaponModel.rotation.x,
-        0,
-        deltaTime * 10
-      )
-    }
-  }
-
-  /**
-   * Update enemies
-   * BESTE Variante: Mit AI Shooting, LOD, Frustum Culling und Performance-Optimierungen
-   */
-  private updateEnemies(deltaTime: number): void {
-    // PERFORMANCE: Frustum Culling Setup (einmal pro Frame)
-    const frustum = new THREE.Frustum()
-    const cameraMatrix = new THREE.Matrix4().multiplyMatrices(
-      this.camera.projectionMatrix,
-      this.camera.matrixWorldInverse
-    )
-    frustum.setFromProjectionMatrix(cameraMatrix)
-    
-    for (const enemy of this.enemies) {
-      const distance = enemy.mesh.position.distanceTo(this.player.position)
-      
-      // 📹 NEW: Kill Cam Recording for nearby enemies (potential killers)
-      if (distance < 50 && enemy.aiController) {
-        this.killCamSystem.startRecording(this.camera)
-        this.killCamSystem.recordFrame(this.camera, enemy.mesh.position)
-      }
-      
-      // PERFORMANCE: Frustum Culling - Skip entfernte, nicht-sichtbare Enemies
-      const isInFrustum = frustum.containsPoint(enemy.mesh.position)
-      if (!isInFrustum && distance > 100) {
-        // Enemy ist zu weit weg und nicht sichtbar - skip Update
-        enemy.mesh.visible = false
-        continue
-      }
-      
-      // PERFORMANCE: LOD System - Reduziere Update-Rate für entfernte Enemies
-      let updateRate = 1.0
-      let skipUpdate = false
-      
-      if (distance > 50) {
-        // LOD Level 2: Weniger Updates (jeden 2. Frame)
-        updateRate = 0.5
-        enemy.mesh.visible = true
-        // Skip Update bei jedem 2. Frame
-        skipUpdate = Math.floor(this.gameState.roundTime * 10) % 2 === 0
-      } else if (distance > 20) {
-        // LOD Level 1: Normale Updates
-        updateRate = 1.0
-        enemy.mesh.visible = true
-      } else {
-        // LOD Level 0: Vollständige Updates
-        updateRate = 1.0
-        enemy.mesh.visible = true
-      }
-      
-      // Skip Update wenn LOD es erfordert
-      if (skipUpdate) {
-        continue
-      }
-      
-      // Update AI (nur wenn LOD es erlaubt)
-      const decision = enemy.aiController.update(deltaTime * updateRate)
-
-      // 🆕 NEW: Behavior Tree Execution für smarte AI
-      const enemyClass = enemy.mesh.userData.enemyClass
-      const enemyConfig = enemy.mesh.userData.enemyConfig
-      
-      if (enemyClass && enemyConfig && this.behaviorTreeManager) {
-        // Create Behavior Context
-        const behaviorContext = {
-          // Enemy State
-          enemyPosition: enemy.mesh.position.clone(),
-          enemyHealth: enemy.health,
-          enemyMaxHealth: enemy.maxHealth,
-          isInCover: false, // TODO: Implement cover detection
-          hasLineOfSight: this.hasLineOfSight(enemy.mesh.position, this.player.position),
-          
-          // Player State
-          playerPosition: this.player.position.clone(),
-          distanceToPlayer: distance,
-          lastSeenPlayerPosition: this.player.position.clone(),
-          timeSinceLastSeen: 0, // TODO: Track last seen time
-          
-          // Combat State
-          currentWeapon: null, // Enemy weapon
-          ammo: 100,
-          isReloading: false,
-          timeSinceLastShot: 0,
-          
-          // Team State
-          nearbyAllies: this.enemies
-            .filter(e => e.id !== enemy.id && e.mesh.position.distanceTo(enemy.mesh.position) < 20)
-            .map(e => e.mesh.position),
-          nearbyEnemies: [this.player.position],
-          
-          // Environment
-          scene: this.scene,
-          coverPoints: [], // TODO: Find cover points
-          flankingRoutes: [], // TODO: Find flanking routes
-          
-          // Time
-          deltaTime: deltaTime * updateRate,
-          timestamp: Date.now()
-        }
-        
-        // Execute Behavior Tree
-        const action = this.behaviorTreeManager.executeBehavior(
-          enemyConfig.behavior,
-          enemyConfig,
-          behaviorContext as any
-        )
-        
-        // Execute Action
-        this.executeBehaviorAction(enemy, action, deltaTime * updateRate)
-      } else {
-        // 🧭 NEW: Pathfinding-based Movement
-        this.updateEnemyPathfinding(enemy, deltaTime * updateRate, distance)
-
-        // Face player (nur wenn nah)
-        if (distance <= 50) {
-          enemy.mesh.lookAt(this.player.position)
-        }
-
-        // BESTE Variante: AI Shooting über State (nur wenn nah)
-        if (distance <= 30) {
-          const currentState = enemy.aiController.getCurrentState()
-          if (currentState === AIState.ENGAGING) {
-            enemy.aiController.shootAtPlayer()
-          }
-        }
-      }
-
-      // BESTE Variante: Spatial Grid für Performance
-      this.spatialGrid.update({
-        id: enemy.id,
-        position: enemy.mesh.position,
-        radius: 1.5,
-        type: 'enemy',
-        data: enemy
-      })
-
-      // Bounding Box Update (nur wenn nah)
-      if (distance <= 50) {
-        this.boundingBoxSystem.updateBox(enemy.id, enemy.mesh)
-      }
-
-      // Player Position für AI (immer aktualisieren)
-      enemy.aiController.setPlayerPosition(this.player.position)
-    }
-  }
-
-  /**
-   * 🧭 Update Enemy Pathfinding Movement
-   */
-  private updateEnemyPathfinding(enemy: UltimateEnemy, deltaTime: number, distanceToPlayer: number): void {
-    const PATH_UPDATE_INTERVAL = 2.0 // Update path every 2 seconds
-    const PATH_NODE_REACH_DISTANCE = 2.0 // Distance to consider a node "reached"
-    const MOVE_SPEED = 2.0
-    
-    const now = Date.now() / 1000
-    
-    // Initialize pathfinding properties
-    if (!enemy.lastPathUpdateTime) {
-      enemy.lastPathUpdateTime = 0
-      enemy.pathIndex = 0
-    }
-    
-    // Update path periodically or if no path exists
-    const needsNewPath = 
-      !enemy.currentPath || 
-      enemy.currentPath.length === 0 ||
-      (now - (enemy.lastPathUpdateTime || 0)) > PATH_UPDATE_INTERVAL
-    
-    if (needsNewPath) {
-      // Find path to player
-      const path = this.pathfindingManager.findPath(
-        enemy.mesh.position,
-        this.player.position
-      )
-      
-      if (path.length > 0) {
-        enemy.currentPath = path
-        enemy.pathIndex = 0
-        enemy.lastPathUpdateTime = now
-        // console.log(`🧭 Enemy ${enemy.id}: New path with ${path.length} waypoints`)
-      } else {
-        // No path found - use direct movement as fallback
-        enemy.currentPath = undefined
-      }
-    }
-    
-    // Follow current path
-    if (enemy.currentPath && enemy.currentPath.length > 0 && enemy.pathIndex !== undefined) {
-      const targetWaypoint = enemy.currentPath[enemy.pathIndex]
-      const direction = new THREE.Vector3()
-        .subVectors(targetWaypoint, enemy.mesh.position)
-      
-      const distanceToWaypoint = direction.length()
-      direction.normalize()
-      
-      // Move towards waypoint
-      enemy.mesh.position.add(direction.multiplyScalar(MOVE_SPEED * deltaTime))
-      
-      // Check if waypoint reached
-      if (distanceToWaypoint < PATH_NODE_REACH_DISTANCE) {
-        enemy.pathIndex++
-        
-        // Path completed?
-        if (enemy.pathIndex >= enemy.currentPath.length) {
-          enemy.currentPath = undefined
-          enemy.pathIndex = 0
-          // console.log(`🧭 Enemy ${enemy.id}: Path completed!`)
-        }
-      }
-    } else {
-      // Fallback: Direct movement towards player
-      const direction = new THREE.Vector3()
-        .subVectors(this.player.position, enemy.mesh.position)
-        .normalize()
-      
-      enemy.mesh.position.add(direction.multiplyScalar(MOVE_SPEED * deltaTime))
-    }
-  }
-
-  /**
-   * 🆕 Execute Behavior Action from Behavior Tree
-   */
-  private executeBehaviorAction(enemy: UltimateEnemy, action: any, deltaTime: number): void {
-    if (!action) return
-
-    const distance = enemy.mesh.position.distanceTo(this.player.position)
-
-    switch (action.type) {
-      case 'move_to':
-        if (action.target) {
-          const direction = new THREE.Vector3()
-            .subVectors(action.target, enemy.mesh.position)
-            .normalize()
-          enemy.mesh.position.add(direction.multiplyScalar(2 * deltaTime))
-          enemy.mesh.lookAt(action.target)
-        }
-        break
-
-      case 'rush':
-        if (action.target) {
-          const direction = new THREE.Vector3()
-            .subVectors(action.target, enemy.mesh.position)
-            .normalize()
-          // Rush is faster than normal movement
-          enemy.mesh.position.add(direction.multiplyScalar(4 * deltaTime))
-          enemy.mesh.lookAt(action.target)
-        }
-        break
-
-      case 'retreat':
-        if (action.target) {
-          const direction = new THREE.Vector3()
-            .subVectors(action.target, enemy.mesh.position)
-            .normalize()
-          enemy.mesh.position.add(direction.multiplyScalar(3 * deltaTime))
-        }
-        break
-
-      case 'shoot':
-        // AI shoot through AIController
-        if (distance <= 50) {
-          const currentState = enemy.aiController.getCurrentState()
-          if (currentState === AIState.ENGAGING) {
-            enemy.aiController.shootAtPlayer()
-          }
-        }
-        break
-
-      case 'take_cover':
-        // Move to cover position
-        if (action.target) {
-          const direction = new THREE.Vector3()
-            .subVectors(action.target, enemy.mesh.position)
-            .normalize()
-          enemy.mesh.position.add(direction.multiplyScalar(2.5 * deltaTime))
-        }
-        break
-
-      case 'flank':
-        // Execute flanking maneuver
-        if (action.target) {
-          const direction = new THREE.Vector3()
-            .subVectors(action.target, enemy.mesh.position)
-            .normalize()
-          enemy.mesh.position.add(direction.multiplyScalar(3 * deltaTime))
-        }
-        break
-
-      case 'hold_position':
-        // Stay in place, just look at player
-        enemy.mesh.lookAt(this.player.position)
-        break
-
-      case 'suppress_fire':
-        // Rapid fire mode
-        if (distance <= 40) {
-          enemy.aiController.shootAtPlayer()
-        }
-        break
-
-      case 'aim_laser':
-        // Sniper laser sight (visual warning for player)
-        // TODO: Add laser sight visual effect
-        enemy.mesh.lookAt(this.player.position)
-        if (distance >= 40 && distance <= 100) {
-          enemy.aiController.shootAtPlayer()
-        }
-        break
-
-      case 'throw_grenade':
-        // TODO: Implement grenade throwing
-        // Silent operation - no console spam
-        break
-
-      case 'call_backup':
-        // TODO: Spawn additional enemies
-        // Silent operation - no console spam
-        break
-
-      case 'use_ability':
-        // TODO: Execute special ability
-        // Silent operation - no console spam
-        break
-
-      case 'wait':
-        // Do nothing, just observe
-        break
-
-      default:
-        // Fallback: Move towards player
-        const direction = new THREE.Vector3()
-          .subVectors(this.player.position, enemy.mesh.position)
-          .normalize()
-        enemy.mesh.position.add(direction.multiplyScalar(2 * deltaTime))
-        enemy.mesh.lookAt(this.player.position)
-    }
-  }
-
-  /**
-   * 🆕 Check Line of Sight between two positions
-   */
-  private hasLineOfSight(from: THREE.Vector3, to: THREE.Vector3): boolean {
-    const direction = new THREE.Vector3().subVectors(to, from).normalize()
-    const distance = from.distanceTo(to)
-    
-    // Use PhysicsEngine raycast for LOS check
-    const rayResult = this.physicsEngine.raycast(
-      from,
-      direction,
-      distance,
-      [CollisionLayer.DEFAULT] // Only check world collision
-    )
-    
-    // If no world collision, there's line of sight
-    return !rayResult.hit
-  }
-
-  /**
-   * Spawn enemy
-   * BESTE Variante: Mit SpawnZoneSystem und AI Callbacks (aus V6)
-   */
-  private async spawnEnemy(): Promise<void> {
-    if (this.enemies.length >= 10) return // Max enemies
-
-    // BESTE Variante: SpawnZoneSystem für bessere Spawns (aus OptimizationModules)
-    let spawnPos: THREE.Vector3
-    const spawnZonePos = this.spawnZoneSystem.getSpawnPosition(
-      this.player.position,
-      []
-    )
-    
-    if (spawnZonePos) {
-      spawnPos = new THREE.Vector3(
-        spawnZonePos.x + (Math.random() - 0.5) * 10,
-        0, // TEMPORÄR - wird mit groundOffset überschrieben!
-        spawnZonePos.z + (Math.random() - 0.5) * 10
-      )
-    } else {
-      // Fallback: Random spawn position (far from player)
-      do {
-        spawnPos = new THREE.Vector3(
-          (Math.random() - 0.5) * 80,
-          0, // TEMPORÄR - wird mit groundOffset überschrieben!
-          (Math.random() - 0.5) * 80
-        )
-      } while (spawnPos.distanceTo(this.player.position) < 20)
-    }
-    
-    const enemyId = `enemy-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
-    
-    try {
-      // ✅ BESTE INTEGRATION: Professional Enemy mit Auto-LOD basiert auf Distanz!
-      const distance = spawnPos.distanceTo(this.player.position)
-      // Silent spawning - no console spam
-      
-      const enemyModel = await this.modelManager.loadEnemyCharacter('tactical_operator_optimized', distance)
-      
-      const enemyInstance = enemyModel.clone()
-      
-      // KRITISCH: Scale-Berechnung (0.08-0.15 wie V2/V11)
-      const bbox = new THREE.Box3().setFromObject(enemyInstance)
-      const size = new THREE.Vector3()
-      bbox.getSize(size)
-      
-      // Ziel: 1.7m Höhe (realistisch)
-      const targetHeight = 1.7
-      let scale = targetHeight / size.y
-      
-      // KRITISCH: Scale zwischen 0.08 und 0.15 (wie V2/V11 Fixes!)
-      if (scale < 0.08) scale = 0.08
-      if (scale > 0.15) scale = 0.15
-      
-      enemyInstance.scale.set(scale, scale, scale)
-      
-      // KRITISCH: Boden-Positionierung mit BoundingBox-Check!
-      const scaledBbox = new THREE.Box3().setFromObject(enemyInstance)
-      const groundOffset = -scaledBbox.min.y  // Offset zum Boden
-      
-      // KRITISCH: Container-Meshes verstecken (wie V2 Fix)
-      enemyInstance.traverse((child) => {
-        if ((child as THREE.Mesh).isMesh) {
-          const mesh = child as THREE.Mesh
-          const meshBbox = new THREE.Box3().setFromObject(mesh)
-          const meshSize = new THREE.Vector3()
-          meshBbox.getSize(meshSize)
-          
-          // Wenn Mesh größer als 5 Units, ist es Container
-          const maxDimension = Math.max(meshSize.x, meshSize.y, meshSize.z)
-          if (maxDimension > 5) {
-            console.log(`⚠️ Hiding container mesh (size: ${maxDimension.toFixed(2)})`)
-            mesh.visible = false
-            return
-          }
-          
-          mesh.castShadow = true
-          mesh.receiveShadow = true
-        }
-      })
-      
-      const enemyGroup = new THREE.Group()
-      enemyGroup.add(enemyInstance)
-      
-      // KRITISCH: Position mit Boden-Offset!
-      // X und Z bleiben gleich, Y wird mit groundOffset überschrieben
-      enemyGroup.position.set(
-        spawnPos.x,
-        groundOffset,  // NICHT spawnPos.y! Am Boden!
-        spawnPos.z
-      )
-      
-      enemyGroup.userData = { type: 'ENEMY', id: enemyId }
-      this.scene.add(enemyGroup)
-      
-      // 🆕 NEW: Select Enemy Class based on difficulty
-      const enemyClass = selectEnemyClassByDifficulty(this.currentDifficulty)
-      const enemyConfig = getEnemyConfig(enemyClass)
-      
-      // Silent spawning - no console spam
-      
-      // Create AI controller with class-specific settings
-      const aiController = new AIController(
-        'aggressive_assault', // TODO: Map behavior to behavior type
-        'regular',
-        enemyGroup
-      )
-      aiController.setScene(this.scene)
-      aiController.setPlayerPosition(this.player.position)
-
-      const enemy: UltimateEnemy = {
-        id: enemyGroup.userData.id,
-        mesh: enemyGroup,
-        aiController: aiController,
-        physicsObject: null,
-        health: enemyConfig.health, // 🆕 Class-specific health
-        maxHealth: enemyConfig.maxHealth,
-        healthBar: undefined // Wird später erstellt
-      }
-      
-      // Store enemy class for behavior tree
-      enemyGroup.userData.enemyClass = enemyClass
-      enemyGroup.userData.enemyConfig = enemyConfig
-
-      // ✅ NEU: Health Bar erstellen und hinzufügen
-      const healthBar = createHealthBar(enemy.maxHealth)
-      enemyGroup.add(healthBar)
-      enemy.healthBar = healthBar
-      updateHealthBar(healthBar, enemy.health, enemy.maxHealth)
-
-      // 🎯 NEW: Register Enemy Hitboxes
-      this.hitboxManager.registerCharacter(enemy.id, enemyGroup)
-
-      // BESTE Variante: AI Shoot Event (wie V6)
-      aiController.onShoot((shootData) => {
-        this.handleAIShoot(enemy, shootData)
-      })
-
-      // AI Death Event (BESTE Variante)
-      aiController.onDeath(() => {
-        this.handleEnemyDeath(enemy)
-      })
-
-      this.enemies.push(enemy)
-
-      // BESTE Variante: Spatial Grid hinzufügen
-      this.spatialGrid.insert({
-        id: enemy.id,
-        position: new THREE.Vector3(spawnPos.x, groundOffset, spawnPos.z),
-        radius: 1.5,
-        type: 'enemy',
-        data: enemy
-      })
-
-      // Bounding Box hinzufügen (erste Mesh finden)
-      const firstMesh = enemyInstance.children.find((child) => (child as THREE.Mesh).isMesh) as THREE.Mesh
-      if (firstMesh) {
-        this.boundingBoxSystem.createBox(enemy.id, firstMesh)
-      }
-
-      // Play spawn sound
-      this.audioManager?.playSound('enemy_spawn', enemyGroup.position)
-      
-      // Silent enemy spawning - no console spam
-      
-    } catch (error) {
-      console.warn('⚠️ Failed to load professional enemy, trying fallback models...')
-      
-      // Fallback: Versuche alte Character Models
-      try {
-        const fallbackTypes = [
-          '/models/characters/terrorist.glb',
-          '/models/characters/police.glb',
-          '/models/characters/military.glb',
-          '/models/characters/soldier.glb'
-        ]
-        const randomType = fallbackTypes[Math.floor(Math.random() * fallbackTypes.length)]
-        const mixerId = `enemy-${enemyId}`
-        
-        const fallbackModel = await this.modelManager.loadModel(randomType, mixerId)
-        const enemyInstance = fallbackModel.clone()
-        
-        const bbox = new THREE.Box3().setFromObject(enemyInstance)
-        const size = new THREE.Vector3()
-        bbox.getSize(size)
-        
-        const targetHeight = 1.7
-        let scale = targetHeight / size.y
-        if (scale < 0.08) scale = 0.08
-        if (scale > 0.15) scale = 0.15
-        
-        enemyInstance.scale.set(scale, scale, scale)
-        
-        const scaledBbox = new THREE.Box3().setFromObject(enemyInstance)
-        const groundOffset = -scaledBbox.min.y
-        
-        enemyInstance.traverse((child) => {
-          if ((child as THREE.Mesh).isMesh) {
-            const mesh = child as THREE.Mesh
-            const meshBbox = new THREE.Box3().setFromObject(mesh)
-            const meshSize = new THREE.Vector3()
-            meshBbox.getSize(meshSize)
-            
-            const maxDimension = Math.max(meshSize.x, meshSize.y, meshSize.z)
-            if (maxDimension > 5) {
-              mesh.visible = false
-              return
-            }
-            
-            mesh.castShadow = true
-            mesh.receiveShadow = true
-          }
-        })
-        
-        const enemyGroup = new THREE.Group()
-        enemyGroup.add(enemyInstance)
-        enemyGroup.position.set(spawnPos.x, groundOffset, spawnPos.z)
-        enemyGroup.userData = { type: 'ENEMY', id: enemyId }
-        this.scene.add(enemyGroup)
-        
-        const aiController = new AIController('aggressive_assault', 'regular', enemyGroup)
-        aiController.setScene(this.scene)
-        aiController.setPlayerPosition(this.player.position)
-
-        const enemy: UltimateEnemy = {
-          id: enemyGroup.userData.id,
-          mesh: enemyGroup,
-          aiController: aiController,
-          physicsObject: null,
-          health: 150,
-          maxHealth: 150,
-          healthBar: undefined
-        }
-
-        const healthBar = createHealthBar(enemy.maxHealth)
-        enemyGroup.add(healthBar)
-        enemy.healthBar = healthBar
-        updateHealthBar(healthBar, enemy.health, enemy.maxHealth)
-
-        // 🎯 NEW: Register Enemy Hitboxes
-        this.hitboxManager.registerCharacter(enemy.id, enemyGroup)
-
-        aiController.onShoot((shootData) => {
-          this.handleAIShoot(enemy, shootData)
-        })
-
-        aiController.onDeath(() => {
-          this.handleEnemyDeath(enemy)
-        })
-
-        this.enemies.push(enemy)
-
-        this.spatialGrid.insert({
-          id: enemy.id,
-          position: new THREE.Vector3(spawnPos.x, groundOffset, spawnPos.z),
-          radius: 1.5,
-          type: 'enemy',
-          data: enemy
-        })
-
-        const firstMesh = enemyInstance.children.find((child) => (child as THREE.Mesh).isMesh) as THREE.Mesh
-        if (firstMesh) {
-          this.boundingBoxSystem.createBox(enemy.id, firstMesh)
-        }
-
-        this.audioManager?.playSound('enemy_spawn', enemyGroup.position)
-        // Silent fallback spawning - no console spam
-        
-      } catch (fallbackError) {
-        console.warn('⚠️ All enemy models failed, using primitive geometry')
-        this.createFallbackEnemy(spawnPos)
-      }
-    }
-  }
-
-  /**
-   * Create fallback enemy (primitive geometry)
-   */
-  private createFallbackEnemy(spawnPos: THREE.Vector3): void {
-    // CapsuleGeometry Fallback (1.5m Höhe, Radius 0.5)
-    const enemyGeometry = new THREE.CapsuleGeometry(0.5, 1.5, 4, 8)
-    const enemyMaterial = new THREE.MeshStandardMaterial({ color: 0xff0000 })
-    const enemyMesh = new THREE.Mesh(enemyGeometry, enemyMaterial)
-    enemyMesh.castShadow = true
-    const enemyGroup = new THREE.Group()
-    enemyGroup.add(enemyMesh)
-    
-    // Capsule hat Pivot in der Mitte, also Y-Offset
-    enemyGroup.position.set(spawnPos.x, spawnPos.y + 0.75, spawnPos.z) // +0.75 = halbe Höhe
-    
-    enemyGroup.userData = { type: 'ENEMY', id: `enemy-${Date.now()}` }
-    this.scene.add(enemyGroup)
-    
-    // Create AI controller
-    const aiController = new AIController(
-      'aggressive_assault',
-      'regular',
-      enemyGroup
-    )
-    aiController.setScene(this.scene)
-    aiController.setPlayerPosition(this.player.position)
-
-    const enemy: UltimateEnemy = {
-      id: enemyGroup.userData.id,
-      mesh: enemyGroup,
-      aiController: aiController,
-      physicsObject: null,
-      health: 150, // ✅ NEU: Enemy Health System
-      maxHealth: 150,
-      healthBar: undefined
-    }
-
-    // ✅ NEU: Health Bar erstellen
-    const healthBar = createHealthBar(enemy.maxHealth)
-    enemyGroup.add(healthBar)
-    enemy.healthBar = healthBar
-
-    // 🎯 NEW: Register Enemy Hitboxes
-    this.hitboxManager.registerCharacter(enemy.id, enemyGroup)
-
-    // AI Shoot Event
-    aiController.onShoot((shootData) => {
-      this.handleAIShoot(enemy, shootData)
-    })
-
-    // AI Death Event
-    aiController.onDeath(() => {
-      this.handleEnemyDeath(enemy)
-    })
-
-    this.enemies.push(enemy)
-
-    // Spatial Grid hinzufügen
-    this.spatialGrid.insert({
-      id: enemy.id,
-      position: enemyGroup.position,
-      radius: 1.5,
-      type: 'enemy',
-      data: enemy
-    })
-
-    // Bounding Box hinzufügen
-    this.boundingBoxSystem.createBox(enemy.id, enemyMesh)
-
-    // Play spawn sound
-    this.audioManager?.playSound('enemy_spawn', enemyGroup.position)
-  }
 
   /**
    * BESTE Variante: Enemy Death Handling (aus V6) + ✅ Health Bar Cleanup
    */
+  /**
+   * 🤖 REFACTORED: Handle Enemy Death - Delegate to EnemyAIManager
+   */
   private handleEnemyDeath(enemy: UltimateEnemy): void {
-    // Wird bereits in handleKill() behandelt, aber hier für Cleanup
-    // SpatialObject finden und entfernen
-    const nearby = this.spatialGrid.getNearby(enemy.mesh.position, 5)
-    const spatialObject = nearby.find(obj => obj.id === enemy.id)
-    if (spatialObject) {
-      this.spatialGrid.remove(spatialObject)
-    }
-    this.boundingBoxSystem.removeBox(enemy.id)
-    
-    // 🎯 NEW: Hitbox unregister
-    this.hitboxManager.unregisterCharacter(enemy.id)
-    
-    // ✅ NEU: Health Bar entfernen
-    if (enemy.healthBar) {
-      enemy.mesh.remove(enemy.healthBar)
-      enemy.healthBar.traverse((child) => {
-        if ((child as THREE.Mesh).isMesh) {
-          const mesh = child as THREE.Mesh
-          mesh.geometry.dispose()
-          if (mesh.material instanceof THREE.Material) {
-            mesh.material.dispose()
-          }
-        }
-      })
-    }
-    
-    // KRITISCH: Animation-Mixer entfernen (verhindert Memory-Leaks)
-    this.modelManager.removeAnimationMixer(`enemy-${enemy.id}`)
-    
-    // 📹 NEW: Stop Kill Cam Recording (if enemy was recording)
-    if (enemy.aiController) {
-      this.killCamSystem.stopRecording()
-    }
+    // All cleanup now handled by EnemyAIManager
+    this.enemyAIManager.handleEnemyDeath(enemy)
+
+    // Additional engine-specific cleanup
+    this.killCamSystem.stopRecording()
   }
 
   /**
@@ -4394,6 +3170,9 @@ export class UltimateFPSEngineV4 {
     // 🆕 NEW: Cleanup NEW FEATURES
     this.abilitySystem.destroy()
     // weaponProgressionManager speichert bereits in localStorage, kein Cleanup nötig
+
+    // 🤖 REFACTORED: Cleanup Enemy AI Manager
+    this.enemyAIManager.dispose()
 
     // 📹 NEW: Cleanup Kill Cam System
     this.killCamSystem.dispose()

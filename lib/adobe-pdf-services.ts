@@ -49,15 +49,22 @@ class AdobePdfServicesClient {
     }
 
     // In production, load credentials from environment
-    this.credentials = credentials || {
-      clientId: process.env.ADOBE_CLIENT_ID || 'MOCK_CLIENT_ID',
-      clientSecret: process.env.ADOBE_CLIENT_SECRET || 'MOCK_CLIENT_SECRET',
-      organizationId: process.env.ADOBE_ORG_ID,
+    if (!credentials) {
+      if (!process.env.ADOBE_CLIENT_ID || !process.env.ADOBE_CLIENT_SECRET) {
+        throw new Error('ADOBE_CLIENT_ID and ADOBE_CLIENT_SECRET environment variables are required for Adobe PDF Services')
+      }
+      this.credentials = {
+        clientId: process.env.ADOBE_CLIENT_ID,
+        clientSecret: process.env.ADOBE_CLIENT_SECRET,
+        organizationId: process.env.ADOBE_ORG_ID,
+      }
+    } else {
+      this.credentials = credentials
     }
 
-    // Mock initialization - in production, this would authenticate with Adobe API
+    // Warn if mock credentials are explicitly provided
     if (this.credentials.clientId === 'MOCK_CLIENT_ID') {
-      console.warn('⚠️  Adobe PDF Services: Running in MOCK mode (no real API calls)')
+      console.warn('⚠️  Adobe PDF Services: Running in MOCK mode with test credentials (no real API calls)')
     }
 
     this.initialized = true
