@@ -311,7 +311,7 @@ export class CacheManager {
     try {
       return await redis.smembers(key)
     } catch (error) {
-      console.error(`Cache smembers error for key ${key}:`, error)
+      console.error('Cache smembers error for key %s:', key, error)
       return []
     }
   }
