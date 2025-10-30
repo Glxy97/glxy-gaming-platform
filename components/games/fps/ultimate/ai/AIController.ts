@@ -895,9 +895,9 @@ export class AIController {
 
   private findAndMoveToCover(): void {
     const bestCover = selectBestCover(
+      this.coverPositions,
       this.bot.position,
-      this.playerPosition,
-      this.coverPositions
+      this.playerPosition
     )
 
     if (bestCover) {

@@ -489,7 +489,7 @@ export class ProgressionManager {
   private setupAutoSave(): void {
     this.autoSaveInterval = setInterval(() => {
       this.save()
-    }, this.config.saveInterval)
+    }, this.config.saveInterval) as number
   }
 
   // =============================================================================
