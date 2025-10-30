@@ -39,7 +39,7 @@ export async function renderPdfPage(
       if (error instanceof Error && (error as NodeJS.ErrnoException).code === 'MODULE_NOT_FOUND') {
         const errorMessage = 'PDF rendering is unavailable because the optional "canvas" package is not installed. Install it with: npm install canvas'
         console.error(`[PDF Renderer] ${errorMessage}`)
-        throw new Error(errorMessage)
+        throw new Error(errorMessage, { cause: error })
       }
       throw error
     }
