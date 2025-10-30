@@ -140,7 +140,7 @@ export class MapEditor {
     this.transformControls.addEventListener('change', () => {
       this.onTransformChange()
     })
-    this.scene.add(this.transformControls as unknown as THREE.Object3D)
+    this.scene.add(this.transformControls as THREE.Object3D)
 
     // Setup initial state
     this.setupGrid()
@@ -505,10 +505,10 @@ export class MapEditor {
     // Apply snap if enabled
     if (this.state.snapSettings.snapToGrid) {
       const snapped = snapVectorToGrid(
-        mesh.position as unknown as THREE.Vector3,
+        mesh.position,
         this.state.snapSettings.gridSize
       )
-      mesh.position.copy(snapped as unknown as THREE.Vector3)
+      mesh.position.copy(snapped)
     }
 
     // Add to scene
@@ -877,9 +877,9 @@ export class MapEditor {
     return {
       id: mesh.userData.id,
       type: this.state.tool,
-      position: mesh.position.clone() as unknown as THREE.Vector3,
-      rotation: new THREE.Vector3(mesh.rotation.x, mesh.rotation.y, mesh.rotation.z) as unknown as THREE.Vector3,
-      scale: mesh.scale.clone() as unknown as THREE.Vector3,
+      position: mesh.position.clone(),
+      rotation: new THREE.Vector3(mesh.rotation.x, mesh.rotation.y, mesh.rotation.z),
+      scale: mesh.scale.clone(),
       locked: false,
       visible: mesh.visible,
       layer: this.state.activeLayer,
@@ -951,16 +951,16 @@ export class MapEditor {
 
     if (this.state.snapSettings.snapToGrid && this.state.gizmoType === GizmoType.TRANSLATE) {
       const snapped = snapVectorToGrid(
-        mesh.position as unknown as THREE.Vector3,
+        mesh.position,
         this.state.snapSettings.gridSize
       )
-      mesh.position.copy(snapped as unknown as THREE.Vector3)
+      mesh.position.copy(snapped)
     }
 
     if (this.state.snapSettings.snapToAngle && this.state.gizmoType === GizmoType.ROTATE) {
       const euler = new THREE.Vector3(mesh.rotation.x, mesh.rotation.y, mesh.rotation.z)
       const snapped = snapVectorAngles(euler, this.state.snapSettings.angleIncrement)
-      mesh.rotation.set(snapped.x as number, snapped.y as number, snapped.z as number)
+      mesh.rotation.set(snapped.x, snapped.y, snapped.z)
     }
 
     // Update selection box
@@ -980,7 +980,7 @@ export class MapEditor {
         console.log('Auto-saving map...')
         this.saveMap()
       }
-    }, this.config.autoSaveInterval * 1000) as unknown as number
+    }, this.config.autoSaveInterval * 1000) as number
   }
 
   /**
