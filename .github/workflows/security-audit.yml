@@ -59,7 +59,7 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci --audit=false --legacy-peer-deps
+        run: npm ci --audit=false --legacy-peer-deps --no-optional
 
       - name: Run NPM Security Audit
         id: npm-audit
@@ -226,7 +226,7 @@ jobs:
 
           # Verify package-lock.json integrity
           if [ -f package-lock.json ]; then
-            npm ci --audit=false --legacy-peer-deps
+            npm ci --audit=false --legacy-peer-deps --no-optional
             if npm audit signatures; then
               echo "✅ Package signatures verified"
             else

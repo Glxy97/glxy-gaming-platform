@@ -80,7 +80,6 @@
     "@types/jsonwebtoken": "^9.0.7",
     "@ungap/with-resolvers": "^0.1.0",
     "bcryptjs": "^2.4.3",
-    "canvas": "^3.2.0",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
@@ -120,6 +119,9 @@
     "vaul": "^1.1.2",
     "zod": "^3.23.8",
     "zustand": "^5.0.8"
+  },
+  "optionalDependencies": {
+    "canvas": "^3.2.0"
   },
   "devDependencies": {
     "@playwright/test": "^1.55.0",

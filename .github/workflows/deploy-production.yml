@@ -40,7 +40,7 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci --legacy-peer-deps
+        run: npm ci --legacy-peer-deps --no-optional
 
       - name: Run TypeScript check
         run: npm run typecheck
@@ -80,7 +80,7 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci --legacy-peer-deps
+        run: npm ci --legacy-peer-deps --no-optional
 
       - name: Run unit tests
         run: npm run test -- --coverage
@@ -139,7 +139,7 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci --legacy-peer-deps
+        run: npm ci --legacy-peer-deps --no-optional
 
       - name: Install Playwright browsers
         run: npx playwright install --with-deps
