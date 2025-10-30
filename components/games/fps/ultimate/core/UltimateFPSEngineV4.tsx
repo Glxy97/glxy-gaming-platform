@@ -792,8 +792,8 @@ export class UltimateFPSEngineV4 {
       abilitySystem: this.abilitySystem,
       ground: this.ground,
       scene: this.scene,
-      onShoot: () => this.shoot(),
-      onReload: () => this.reload(),
+      onShoot: () => this.shootWeapon(),
+      onReload: () => this.reloadWeapon(),
       onWeaponSwitch: (index) => this.weaponManager.switchToWeapon(index),
       onGrenadeThrow: () => this.grenadeSystem.throwGrenade(this.camera.position, this.camera.getWorldDirection(new THREE.Vector3()))
     })

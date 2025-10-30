@@ -229,10 +229,10 @@ export class InputManager {
     this.movementController.update(moveInput, this.player.rotation.y, deltaTime)
 
     // Advanced movement system
-    const advancedResult = this.advancedMovementSystem.update({
+    const advancedResult = this.advancedMovementSystem.update(deltaTime, {
       ...moveInput,
       velocity: this.movementController.velocity
-    }, deltaTime)
+    }, this.player.position)
 
     // Apply advanced movement
     if (advancedResult.isWallRunning || advancedResult.isSliding) {
