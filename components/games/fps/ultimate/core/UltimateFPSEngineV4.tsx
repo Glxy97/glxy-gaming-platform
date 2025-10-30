@@ -169,6 +169,9 @@ import { SOUND_LIBRARY, getWeaponSound } from '../audio/SoundLibrary'
 // 🎯 EVENT ORCHESTRATOR (REFACTORED)
 import { EventOrchestrator } from './EventOrchestrator'
 
+// 🤖 ENEMY AI MANAGER (REFACTORED)
+import { EnemyAIManager } from './EnemyAIManager'
+
 /**
  * 🎮 GLXY ULTIMATE FPS ENGINE V4
  *
@@ -318,13 +321,15 @@ export class UltimateFPSEngineV4 {
     stats: UltimatePlayerStats
   }
 
-  // Enemies
-  private enemies: UltimateEnemy[] = []
+  // 🤖 REFACTORED: Enemies now managed by EnemyAIManager
+  // Getter delegates to manager
+  private get enemies(): UltimateEnemy[] {
+    return this.enemyAIManager?.getEnemies() || []
+  }
 
   // Game State
   private gameState: UltimateGameState
-  private lastEnemySpawn: number = 0
-  private isSpawningEnemy: boolean = false // Race Condition Schutz
+  // REMOVED: lastEnemySpawn, isSpawningEnemy - now in EnemyAIManager
 
   // Performance Optimization Systems
   private spatialGrid!: SpatialHashGrid
@@ -448,6 +453,9 @@ export class UltimateFPSEngineV4 {
 
   // 🎯 EVENT ORCHESTRATOR (REFACTORED)
   private eventOrchestrator!: EventOrchestrator
+
+  // 🤖 ENEMY AI MANAGER (REFACTORED)
+  private enemyAIManager!: EnemyAIManager
 
   private uiRenderCallback?: (state: GameState, data: any) => void
 
@@ -680,6 +688,27 @@ export class UltimateFPSEngineV4 {
     // Setup player
     this.setupPlayer().catch(err => console.error('Setup player error:', err))
     this.setupEventListeners()
+
+    // 🤖 REFACTORED: Initialize Enemy AI Manager FIRST (before EventOrchestrator needs enemies)
+    console.log('🤖 Initializing Enemy AI Manager...')
+    this.enemyAIManager = new EnemyAIManager({
+      scene: this.scene,
+      camera: this.camera,
+      player: this.player,
+      physicsEngine: this.physicsEngine,
+      effectsManager: this.effectsManager,
+      audioManager: this.audioManager,
+      modelManager: this.modelManager,
+      behaviorTreeManager: this.behaviorTreeManager,
+      pathfindingManager: this.pathfindingManager,
+      hitboxManager: this.hitboxManager,
+      spatialGrid: this.spatialGrid,
+      boundingBoxSystem: this.boundingBoxSystem,
+      spawnZoneSystem: this.spawnZoneSystem,
+      onPlayerHit: (damage, direction) => this.handlePlayerHit(damage, direction),
+      onEnemyKilled: (enemy, killData) => this.handleKill(killData)
+    })
+    console.log('✅ Enemy AI Manager initialized')
 
     // 🎯 REFACTORED: Initialize Event Orchestrator (replaces all individual event setups)
     console.log('🎯 Initializing Event Orchestrator...')
@@ -3193,11 +3222,9 @@ export class UltimateFPSEngineV4 {
         this.abilitySystem.chargeUltimate(deltaTime, 'time')
       }
 
-      // Update enemies
-      this.updateEnemies(deltaTime)
-      
-      // ✅ NEU: Update Enemy Health Bars (immer zur Kamera gerichtet)
-      this.updateEnemyHealthBars()
+      // 🤖 REFACTORED: Update enemies via EnemyAIManager
+      this.enemyAIManager.update(deltaTime)
+      // Note: Also updates health bars
       
       // ✅ NEU: Update & Render Hit Markers & Damage Indicators
       this.hitMarkerSystem.update(deltaTime)
@@ -3378,19 +3405,8 @@ export class UltimateFPSEngineV4 {
         new THREE.Vector3(0, 1, 0)
       )
 
-      // Spawn enemies (mit Race Condition Schutz)
-      if (!this.isSpawningEnemy && Date.now() - this.lastEnemySpawn > 3000) {
-        this.isSpawningEnemy = true
-        this.spawnEnemy()
-          .then(() => {
-            this.lastEnemySpawn = Date.now()
-            this.isSpawningEnemy = false
-          })
-          .catch((err) => {
-            console.error('Spawn enemy error:', err)
-            this.isSpawningEnemy = false
-          })
-      }
+      // 🤖 REFACTORED: Auto-spawn enemies via EnemyAIManager
+      this.enemyAIManager.autoSpawn()
 
       // Update HUD
       this.updateHUD()
@@ -4346,40 +4362,15 @@ export class UltimateFPSEngineV4 {
   /**
    * BESTE Variante: Enemy Death Handling (aus V6) + ✅ Health Bar Cleanup
    */
+  /**
+   * 🤖 REFACTORED: Handle Enemy Death - Delegate to EnemyAIManager
+   */
   private handleEnemyDeath(enemy: UltimateEnemy): void {
-    // Wird bereits in handleKill() behandelt, aber hier für Cleanup
-    // SpatialObject finden und entfernen
-    const nearby = this.spatialGrid.getNearby(enemy.mesh.position, 5)
-    const spatialObject = nearby.find(obj => obj.id === enemy.id)
-    if (spatialObject) {
-      this.spatialGrid.remove(spatialObject)
-    }
-    this.boundingBoxSystem.removeBox(enemy.id)
-    
-    // 🎯 NEW: Hitbox unregister
-    this.hitboxManager.unregisterCharacter(enemy.id)
-    
-    // ✅ NEU: Health Bar entfernen
-    if (enemy.healthBar) {
-      enemy.mesh.remove(enemy.healthBar)
-      enemy.healthBar.traverse((child) => {
-        if ((child as THREE.Mesh).isMesh) {
-          const mesh = child as THREE.Mesh
-          mesh.geometry.dispose()
-          if (mesh.material instanceof THREE.Material) {
-            mesh.material.dispose()
-          }
-        }
-      })
-    }
-    
-    // KRITISCH: Animation-Mixer entfernen (verhindert Memory-Leaks)
-    this.modelManager.removeAnimationMixer(`enemy-${enemy.id}`)
-    
-    // 📹 NEW: Stop Kill Cam Recording (if enemy was recording)
-    if (enemy.aiController) {
-      this.killCamSystem.stopRecording()
-    }
+    // All cleanup now handled by EnemyAIManager
+    this.enemyAIManager.handleEnemyDeath(enemy)
+
+    // Additional engine-specific cleanup
+    this.killCamSystem.stopRecording()
   }
 
   /**
@@ -4441,6 +4432,9 @@ export class UltimateFPSEngineV4 {
     // 🆕 NEW: Cleanup NEW FEATURES
     this.abilitySystem.destroy()
     // weaponProgressionManager speichert bereits in localStorage, kein Cleanup nötig
+
+    // 🤖 REFACTORED: Cleanup Enemy AI Manager
+    this.enemyAIManager.dispose()
 
     // 📹 NEW: Cleanup Kill Cam System
     this.killCamSystem.dispose()
