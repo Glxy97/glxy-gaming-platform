@@ -31,7 +31,7 @@ export async function renderPdfPage(
   try {
     // Dynamic import canvas (optional dependency)
     // This ensures the app doesn't crash if canvas is not installed
-    let createCanvas: typeof import('canvas').createCanvas
+    let createCanvas: (width: number, height: number) => any
     try {
       const canvasModule = await import('canvas')
       createCanvas = canvasModule.createCanvas
