@@ -16,7 +16,7 @@ import { HitboxSystemManager } from '../systems/HitboxSystem'
 import { SpatialHashGrid, BoundingBoxSystem, SpawnZoneSystem, type SpatialObject } from './OptimizationModules'
 import { selectEnemyClassByDifficulty, getEnemyConfig, EnemyClass } from '../ai/EnemyClasses'
 import { createHealthBar, updateHealthBar } from './FPSFeatures'
-import type { UltimateEnemy, UltimatePlayerStats } from './UltimateFPSEngineV4'
+import type { GameEnemy, UltimatePlayerStats } from './UltimateFPSEngineV4'
 
 /**
  * 🤖 ENEMY AI MANAGER
@@ -34,7 +34,7 @@ import type { UltimateEnemy, UltimatePlayerStats } from './UltimateFPSEngineV4'
 export class EnemyAIManager {
   private scene: THREE.Scene
   private camera: THREE.PerspectiveCamera
-  private enemies: UltimateEnemy[] = []
+  private enemies: GameEnemy[] = []
 
   // Dependencies
   private physicsEngine: PhysicsEngine
@@ -66,7 +66,7 @@ export class EnemyAIManager {
 
   // Callbacks
   private onPlayerHit: (damage: number, direction?: THREE.Vector3) => void
-  private onEnemyKilled: (enemy: UltimateEnemy, killData: any) => void
+  private onEnemyKilled: (enemy: GameEnemy, killData: any) => void
 
   constructor(deps: {
     scene: THREE.Scene
@@ -83,7 +83,7 @@ export class EnemyAIManager {
     boundingBoxSystem: BoundingBoxSystem
     spawnZoneSystem: SpawnZoneSystem
     onPlayerHit: (damage: number, direction?: THREE.Vector3) => void
-    onEnemyKilled: (enemy: UltimateEnemy, killData: any) => void
+    onEnemyKilled: (enemy: GameEnemy, killData: any) => void
   }) {
     this.scene = deps.scene
     this.camera = deps.camera
@@ -105,7 +105,7 @@ export class EnemyAIManager {
   /**
    * Get all enemies
    */
-  public getEnemies(): UltimateEnemy[] {
+  public getEnemies(): GameEnemy[] {
     return this.enemies
   }
 
@@ -228,7 +228,7 @@ export class EnemyAIManager {
   /**
    * 🧭 Update Enemy Pathfinding Movement
    */
-  private updateEnemyPathfinding(enemy: UltimateEnemy, deltaTime: number, distanceToPlayer: number): void {
+  private updateEnemyPathfinding(enemy: GameEnemy, deltaTime: number, distanceToPlayer: number): void {
     const PATH_UPDATE_INTERVAL = 2.0
     const PATH_NODE_REACH_DISTANCE = 2.0
     const MOVE_SPEED = 2.0
@@ -296,7 +296,7 @@ export class EnemyAIManager {
   /**
    * 🆕 Execute Behavior Action from Behavior Tree
    */
-  private executeBehaviorAction(enemy: UltimateEnemy, action: any, deltaTime: number): void {
+  private executeBehaviorAction(enemy: GameEnemy, action: any, deltaTime: number): void {
     if (!action) return
 
     const distance = enemy.mesh.position.distanceTo(this.player.position)
@@ -469,7 +469,7 @@ export class EnemyAIManager {
       aiController.setScene(this.scene)
       aiController.setPlayerPosition(this.player.position)
 
-      const enemy: UltimateEnemy = {
+      const enemy: GameEnemy = {
         id: enemyGroup.userData.id,
         mesh: enemyGroup,
         aiController: aiController,
@@ -526,7 +526,7 @@ export class EnemyAIManager {
   /**
    * 💀 Handle Enemy Death
    */
-  public handleEnemyDeath(enemy: UltimateEnemy): void {
+  public handleEnemyDeath(enemy: GameEnemy): void {
     // Remove from spatial grid
     const nearby = this.spatialGrid.getNearby(enemy.mesh.position, 5)
     const spatialObject = nearby.find(obj => obj.id === enemy.id)
@@ -559,7 +559,7 @@ export class EnemyAIManager {
   /**
    * 🔫 Handle AI Shoot
    */
-  private handleAIShoot(enemy: UltimateEnemy, shootData: AIShootData): void {
+  private handleAIShoot(enemy: GameEnemy, shootData: AIShootData): void {
     // Raycast to player
     const rayResult = this.physicsEngine.raycast(
       shootData.origin,
@@ -602,7 +602,7 @@ export class EnemyAIManager {
   /**
    * 🎯 Damage Enemy
    */
-  public damageEnemy(enemy: UltimateEnemy, damage: number): boolean {
+  public damageEnemy(enemy: GameEnemy, damage: number): boolean {
     enemy.health -= damage
 
     if (enemy.healthBar) {

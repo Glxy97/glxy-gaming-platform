@@ -9,6 +9,7 @@
  * - Volume based on damage
  */
 
+import * as THREE from 'three'
 import { AudioManager } from './AudioManager'
 
 export enum HitSoundType {
@@ -29,6 +30,7 @@ export interface HitSoundConfig {
 export class HitSoundManager {
   private audioManager: AudioManager | null = null
   private enabled: boolean = true
+  private position: THREE.Vector3 = new THREE.Vector3(0, 0, 0)
 
   // Volume settings
   private baseVolume = 0.6
@@ -89,7 +91,7 @@ export class HitSoundManager {
     }
 
     // Try to play registered sound, fallback to generated
-    const soundPlayed = this.audioManager.playSound('hit_body', adjustedVolume)
+    const soundPlayed = this.audioManager.playSound('hit_body', this.position, adjustedVolume)
     
     if (!soundPlayed) {
       // Generate body hit sound (low thunk)
@@ -106,7 +108,7 @@ export class HitSoundManager {
     const adjustedVolume = this.headshotVolume * volume
 
     // Try to play registered sound, fallback to generated
-    const soundPlayed = this.audioManager.playSound('hit_headshot', adjustedVolume)
+    const soundPlayed = this.audioManager.playSound('hit_headshot', this.position, adjustedVolume)
     
     if (!soundPlayed) {
       // Generate headshot sound (high ping)
@@ -123,7 +125,7 @@ export class HitSoundManager {
     const adjustedVolume = this.killVolume * volume
 
     // Try to play registered sound, fallback to generated
-    const soundPlayed = this.audioManager.playSound('hit_kill', adjustedVolume)
+    const soundPlayed = this.audioManager.playSound('hit_kill', this.position, adjustedVolume)
     
     if (!soundPlayed) {
       // Generate kill confirm sound (ding)

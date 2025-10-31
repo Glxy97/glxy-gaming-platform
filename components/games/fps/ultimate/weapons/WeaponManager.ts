@@ -318,7 +318,7 @@ export class WeaponManager {
         origin,
         direction,
         this.currentWeapon.getData().range || 1000,
-        [CollisionLayer.ENEMY, CollisionLayer.WORLD]
+        [CollisionLayer.ENEMY, CollisionLayer.ENVIRONMENT]
       )
       
       if (rayResult.hit) {
@@ -336,9 +336,17 @@ export class WeaponManager {
       }
     } else if (this.scene) {
       // Fallback: Eigenes Raycasting wenn keine PhysicsEngine
-      const raycaster = new THREE.Raycaster(origin, direction, 0, this.currentWeapon.getData().range || 1000)
-      const intersects = raycaster.intersectObjects(this.scene.children, true)
-      hit = intersects[0]
+      try {
+        const raycaster = new THREE.Raycaster(origin, direction, 0, this.currentWeapon.getData().range || 1000)
+
+        // Filter out invalid objects before raycasting
+        const validObjects = this.scene.children.filter(obj => obj && obj.isObject3D)
+        const intersects = raycaster.intersectObjects(validObjects, true)
+        hit = intersects[0]
+      } catch (error) {
+        console.warn('⚠️ Raycasting error:', error)
+        hit = undefined
+      }
     }
 
     const result: ShootResult = {

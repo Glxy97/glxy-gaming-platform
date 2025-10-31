@@ -23,7 +23,7 @@ import { NotificationType, createNotificationTemplate } from '../ui/data/UIData'
 import { getWeaponSound } from '../audio/SoundLibrary'
 import type { PlayableCharacter } from '../types/CharacterTypes'
 import type { GameState } from './GameFlowManager'
-import type { UltimateEnemy, UltimateGameState, UltimatePlayerStats } from './UltimateFPSEngineV4'
+import type { GameEnemy, UltimateGameState, UltimatePlayerStats } from './UltimateFPSEngineV4'
 
 /**
  * 🎯 EVENT ORCHESTRATOR
@@ -62,7 +62,7 @@ export class EventOrchestrator {
     stats: UltimatePlayerStats
   }
   private gameState: UltimateGameState
-  private enemies: UltimateEnemy[]
+  private enemies: GameEnemy[]
   private camera: THREE.PerspectiveCamera
   private ground: THREE.Mesh
   private obstacles: THREE.Mesh[]
@@ -71,7 +71,7 @@ export class EventOrchestrator {
   private reserveAmmo: Map<string, number>
 
   // Callbacks
-  private onEnemyDeath: (enemy: UltimateEnemy) => void
+  private onEnemyDeath: (enemy: GameEnemy) => void
   private onKill: (data: any) => void
   private onEnvironmentHit: (intersection: THREE.Intersection) => void
   private onBulletHit: (event: any) => void
@@ -104,14 +104,14 @@ export class EventOrchestrator {
     dynamicCrosshair: DynamicCrosshair
     player: any
     gameState: UltimateGameState
-    enemies: UltimateEnemy[]
+    enemies: GameEnemy[]
     camera: THREE.PerspectiveCamera
     ground: THREE.Mesh
     obstacles: THREE.Mesh[]
     weaponModel: THREE.Group | null
     selectedCharacter: PlayableCharacter
     reserveAmmo: Map<string, number>
-    onEnemyDeath: (enemy: UltimateEnemy) => void
+    onEnemyDeath: (enemy: GameEnemy) => void
     onKill: (data: any) => void
     onEnvironmentHit: (intersection: THREE.Intersection) => void
     onBulletHit: (event: any) => void
@@ -685,23 +685,39 @@ export class EventOrchestrator {
         })
       } else {
         // Missed shot - Environment Hit
-        const raycaster = new THREE.Raycaster(shootResult.origin, shootResult.direction)
-        const worldIntersects = raycaster.intersectObjects([this.ground, ...this.obstacles], true)
-        if (worldIntersects.length > 0) {
-          // Bullet Tracer to miss point
-          this.visualEffectsManager.createBulletTracer(
-            shootResult.origin,
-            worldIntersects[0].point
-          )
+        try {
+          const raycaster = new THREE.Raycaster(shootResult.origin, shootResult.direction)
 
-          this.onEnvironmentHit(worldIntersects[0])
+          // Sichere Filterung von Ground und Obstacles
+          const environmentObjects: THREE.Object3D[] = []
+          if (this.ground && this.ground.isObject3D) {
+            environmentObjects.push(this.ground)
+          }
+          if (this.obstacles && Array.isArray(this.obstacles)) {
+            environmentObjects.push(...this.obstacles.filter(obj => obj && obj.isObject3D))
+          }
+
+          if (environmentObjects.length > 0) {
+            const worldIntersects = raycaster.intersectObjects(environmentObjects, true)
+            if (worldIntersects.length > 0) {
+              // Bullet Tracer to miss point
+              this.visualEffectsManager.createBulletTracer(
+                shootResult.origin,
+                worldIntersects[0].point
+              )
+
+              this.onEnvironmentHit(worldIntersects[0])
+            }
+          }
+        } catch (error) {
+          console.warn('⚠️ Environment raycasting error:', error)
         }
       }
 
       // Game State Update
       this.gameState.shotsFired++
       this.onUpdateHUD()
-    })
+    });
 
     // Weapon Switch Event
     this.weaponManager.onWeaponSwitch(async (event) => {

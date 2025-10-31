@@ -1,0 +1,34 @@
+{
+  "id": "glxy_ar15_tactical",
+  "name": "GLXY AR15 TACTICAL",
+  "type": "Assault Rifle",
+  "category": "Primary",
+  "rarity": "Rare",
+  "damage": 40,
+  "fireRate": 600,
+  "reloadTime": 2.5,
+  "magazineSize": 30,
+  "reserveAmmo": 120,
+  "range": 100,
+  "accuracy": 0.85,
+  "recoil": 0.3,
+  "handling": 0.7,
+  "mobility": 0.8,
+  "bulletSpeed": 800,
+  "penetration": 0.4,
+  "fireModes": ["auto", "burst", "semi"],
+  "defaultFireMode": "auto",
+  "model": "/models/weapons/mac10.glb",
+  "animations": ["fire", "reload", "idle"],
+  "sounds": {
+    "fire": "/sounds/weapons/ar/fire_01.mp3",
+    "reload": "/sounds/weapons/ar/reload.mp3",
+    "empty": "/sounds/weapons/ar/empty.mp3"
+  },
+  "stats": {
+    "kills": 0,
+    "deaths": 0,
+    "accuracy": 0,
+    "headshots": 0
+  }
+}

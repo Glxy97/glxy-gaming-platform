@@ -103,10 +103,7 @@ function FinishRegistrationContent() {
         
         // Sign the user in using the original OAuth provider
         if (provider) {
-            const result = await signIn(provider, { redirect: true, callbackUrl: '/dashboard' })
-            if (result?.error) {
-                throw new Error('Login failed after registration.')
-            }
+            await signIn(provider, { redirect: true, callbackUrl: '/dashboard' })
         } else {
             throw new Error('Provider not found.')
         }

@@ -613,7 +613,7 @@ export class AIController {
     const raycaster = new THREE.Raycaster(this.bot.position, direction, 0, distance)
     
     // ✅ FIX: Filter out Sprites (Health Bars) to avoid camera errors
-    const raycastTargets = this.scene.children.filter(child => {
+    const raycastTargets = (this.scene?.children || []).filter(child => {
       // Exclude Sprites (Health Bars)
       if (child instanceof THREE.Sprite) return false
       // Exclude enemy meshes (we only want obstacles)
@@ -1294,13 +1294,7 @@ export class AIController {
     this.onShootCallbacks.push(callback)
   }
 
-  /**
-   * BESTE Variante: onDeath einfaches Callback (aus V6)
-   */
-  public onDeath(callback: AIDeathCallback): void {
-    this.onDeathSimpleCallbacks.push(callback)
-  }
-
+  
   // ============================================================
   // GETTERS
   // ============================================================

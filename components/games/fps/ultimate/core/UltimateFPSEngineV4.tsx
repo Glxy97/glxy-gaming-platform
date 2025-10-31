@@ -4,6 +4,9 @@
 import * as THREE from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 
+// Global Game Keyboard Manager
+import { GameKeyboard } from '../../../shared/GlobalGameKeyboardManager'
+
 // Game Mode System
 import { GameModeManager } from './GameModeManager'
 import type { GameMode } from '../types/GameTypes'
@@ -235,7 +238,7 @@ export interface UltimateWeapon {
   model?: THREE.Group
 }
 
-export interface UltimateEnemy {
+export interface GameEnemy {
   id: string
   mesh: THREE.Group
   aiController: AIController
@@ -336,7 +339,7 @@ export class UltimateFPSEngineV4 {
 
   // 🤖 REFACTORED: Enemies now managed by EnemyAIManager
   // Getter delegates to manager
-  private get enemies(): UltimateEnemy[] {
+  private get enemies(): GameEnemy[] {
     return this.enemyAIManager?.getEnemies() || []
   }
 
@@ -505,6 +508,24 @@ export class UltimateFPSEngineV4 {
     console.log('🎮 Initializing GLXY Ultimate FPS Engine V4...')
     console.log('✨ Phase 11: Complete Integration of ALL Systems!')
 
+    // KRITISCH: Container Debug
+    console.log('📦 Container debug:', {
+      element: container,
+      tagName: container.tagName,
+      className: container.className,
+      id: container.id,
+      clientWidth: container.clientWidth,
+      clientHeight: container.clientHeight,
+      offsetWidth: container.offsetWidth,
+      offsetHeight: container.offsetHeight,
+      style: {
+        width: container.style.width,
+        height: container.style.height,
+        backgroundColor: container.style.backgroundColor,
+        display: container.style.display
+      }
+    })
+
     this.container = container
     this.onStatsUpdate = onStatsUpdate
     this.onGameEnd = onGameEnd
@@ -521,17 +542,66 @@ export class UltimateFPSEngineV4 {
       0.1,
       1000
     )
-    this.camera.position.set(0, 1.7, 0)
-    
+    this.camera.position.set(0, 10, 20) // Noch höhere und weiter entfernte Position
+    this.camera.lookAt(0, 0, 0) // Auf die Mitte schauen
+
     // KRITISCH: Camera zur Scene hinzufügen (für Child-Objects wie WeaponModel)
     this.scene.add(this.camera)
 
-    this.renderer = new THREE.WebGLRenderer({ antialias: true })
-    this.renderer.setSize(container.clientWidth, container.clientHeight)
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
-    this.renderer.shadowMap.enabled = true
-    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap
-    container.appendChild(this.renderer.domElement)
+    try {
+      this.renderer = new THREE.WebGLRenderer({ antialias: true })
+      this.renderer.setSize(container.clientWidth, container.clientHeight)
+      this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+
+      // KRITISCH: Debug - Renderer-Status prüfen
+      console.log('🎮 Renderer setup:', {
+        type: this.renderer.type,
+        context: this.renderer.getContext(),
+        info: this.renderer.info,
+        capabilities: this.renderer.capabilities
+      })
+
+      // Background setzen - KRITISCH: Kein fester Hintergrund, damit Map sichtbar ist
+      this.renderer.setClearColor(0x000000, 1.0) // Schwarz statt Sky Blue
+      console.log('🎨 Renderer clear color set to: 0x000000 (Schwarz für Map-Sichtbarkeit)')
+
+      this.renderer.shadowMap.enabled = true
+      this.renderer.shadowMap.type = THREE.PCFSoftShadowMap
+
+      // KRITISCH: Canvas Debug vor dem Anhängen
+      console.log('🖼️ Canvas debug before append:', {
+        domElement: this.renderer.domElement,
+        tagName: this.renderer.domElement.tagName,
+        width: this.renderer.domElement.width,
+        height: this.renderer.domElement.height,
+        style: this.renderer.domElement.style.cssText,
+        parentNode: this.renderer.domElement.parentNode
+      })
+
+      container.appendChild(this.renderer.domElement)
+
+      // KRITISCH: Canvas Debug nach dem Anhängen
+      console.log('🖼️ Canvas debug after append:', {
+        domElement: this.renderer.domElement,
+        tagName: this.renderer.domElement.tagName,
+        width: this.renderer.domElement.width,
+        height: this.renderer.domElement.height,
+        style: this.renderer.domElement.style.cssText,
+        parentNode: this.renderer.domElement.parentNode,
+        parentElement: this.renderer.domElement.parentElement
+      })
+
+      console.log('✅ WebGL Renderer initialized successfully')
+
+      // KRITISCH: Test Render sofort nach Initialisierung
+      this.renderer.render(this.scene, this.camera)
+      console.log('✅ Initial test render completed - Scene should be visible!')
+      console.log('🎨 Scene background after render:', this.scene.background)
+      console.log('🎨 Renderer clear color after render:', 0x87ceeb)
+    } catch (error) {
+      console.error('❌ WebGL Renderer initialization failed:', error)
+      throw error
+    }
 
     this.clock = new THREE.Clock()
     this.gltfLoader = new GLTFLoader()
@@ -792,9 +862,10 @@ export class UltimateFPSEngineV4 {
       abilitySystem: this.abilitySystem,
       ground: this.ground,
       scene: this.scene,
+      gameFlowManager: this.gameFlowManager, // Hinzugefügt für GameState-Prüfung
       onShoot: () => this.shootWeapon(),
       onReload: () => this.reloadWeapon(),
-      onWeaponSwitch: (index) => this.weaponManager.switchToWeapon(index),
+      onWeaponSwitch: (index) => this.weaponManager.switchToIndex(index),
       onGrenadeThrow: () => this.grenadeSystem.throwGrenade(this.camera.position, this.camera.getWorldDirection(new THREE.Vector3()))
     })
     this.inputManager.setupEventListeners()
@@ -882,7 +953,7 @@ export class UltimateFPSEngineV4 {
       audioManager: this.audioManager,
       overlayCanvas: this.overlayCanvas,
       onEnemyDeath: (enemy) => this.handleEnemyDeath(enemy),
-      onUpdateHUD: () => this.updateHUD(),
+      // onUpdateHUD: () => this.updateHUD(), // Entfernt - Duplikat mit UpdateLoopManager
       abilityHUDRenderer: this.abilityHUDRenderer,
       minimapRenderer: this.minimapRenderer,
       ammoHUDRenderer: this.ammoHUDRenderer,
@@ -898,7 +969,45 @@ export class UltimateFPSEngineV4 {
     // ✅ KRITISCH: Render-Schleife starten (verhindert schwarzen Bildschirm!)
     this.start()
 
+    // ✅ KRITISCH: GameFlowEvents einrichten
+    this.setupGameFlowEvents()
+
     console.log('✅ Engine V4 initialization complete!')
+  }
+
+  /**
+   * 🎮 Setup GameFlow Events
+   */
+  private setupGameFlowEvents(): void {
+    this.gameFlowManager.on('stateChange', (event: any) => {
+      console.log(`🎮 State Change: ${event.from} → ${event.to}`)
+
+      // Starte Render-Schleife wenn wir ins Spiel gehen
+      if (event.to === 'inGame' && !this.animationFrameId) {
+        console.log('🎬 Starting render loop for inGame state')
+        this.clock.start()
+        this.update()
+      }
+
+      // Pausiere Render-Schleife wenn wir zum Menü gehen
+      if (event.to === 'mainMenu' || event.to === 'characterSelect' || event.to === 'loadout') {
+        if (this.animationFrameId) {
+          console.log(`🎮 Pausing render loop for ${event.to} state`)
+          this.stop()
+        }
+      }
+    })
+  }
+
+  /**
+   * 🎬 Stop Render-Schleife
+   */
+  public stop(): void {
+    if (this.animationFrameId) {
+      cancelAnimationFrame(this.animationFrameId)
+      this.animationFrameId = null
+      console.log('⏹️ Render loop stopped')
+    }
   }
 
   /**
@@ -1706,29 +1815,167 @@ export class UltimateFPSEngineV4 {
   private setupBasicMap(): void {
     console.log('🌍 Setting up basic map environment')
 
-    // Create basic ground (GRÖSSER für bessere Sichtbarkeit)
-    const groundGeometry = new THREE.PlaneGeometry(200, 200)
-    const groundMaterial = new THREE.MeshStandardMaterial({
-      color: 0x2a5a3a, // Grüner Boden (besser sichtbar)
-      roughness: 0.8,
-      metalness: 0.2
+    // KRITISCH: Zuerst versuchen, die echte Map zu laden
+    // Versuche mit URL-encoding wegen Leerzeichen im Dateinamen
+    const mapPath = '/data/map-templates/fps-map-pvp-pve-game-neon/source/Warfacemap%20.glb'
+    console.log(`🗺️ Attempting to load map from: ${mapPath}`)
+
+    this.loadMapFromGLB(mapPath)
+      .then(() => {
+        console.log('✅ Map successfully loaded from GLB')
+      })
+      .catch((error) => {
+        console.warn('⚠️ GLB map loading failed with URL encoding, trying direct path:', error)
+
+        // Fallback: Versuche direkten Pfad
+        const directPath = '/data/map-templates/fps-map-pvp-pve-game-neon/source/Warfacemap .glb'
+        this.loadMapFromGLB(directPath)
+          .then(() => {
+            console.log('✅ Map loaded with direct path')
+          })
+          .catch((directError) => {
+            console.warn('⚠️ Both GLB loading attempts failed, using fallback basic map:', directError)
+            console.log('🌍 Fallback: Creating procedural map environment...')
+            this.createBasicMapFallback()
+          })
+      })
+  }
+
+  private loadMapFromGLB(path: string): Promise<void> {
+    return new Promise((resolve, reject) => {
+      console.log(`🗺️ Loading GLB map from: ${path}`)
+
+      this.gltfLoader.load(
+        path,
+        (gltf) => {
+          console.log('✅ GLB map loaded successfully:', gltf)
+
+          // Füge die Map zur Scene hinzu mit Skalierung und Positionierung
+          const mapScene = gltf.scene
+
+          // Map skalieren und positionieren für bessere Sichtbarkeit
+          mapScene.scale.set(2, 2, 2) // 2x größer machen
+          mapScene.position.set(0, 0, 0) // Zentriert
+
+          this.scene.add(mapScene)
+          console.log('🗺️ Map positioned at origin with scale 2x')
+
+          // Bereite die Map für Schatten vor und fixe Materialien
+          mapScene.traverse((child) => {
+            if (child instanceof THREE.Mesh) {
+              child.castShadow = true
+              child.receiveShadow = true
+
+              // Material-Fix: Sorge für sichtbare Materialien
+              if (child.material) {
+                // Wenn Material existiert, stelle sicher, dass es sichtbar ist
+                if (Array.isArray(child.material)) {
+                  child.material.forEach(mat => {
+                    if (mat) {
+                      mat.transparent = false
+                      mat.opacity = 1.0
+                      mat.needUpdate = true
+                    }
+                  })
+                } else {
+                  child.material.transparent = false
+                  child.material.opacity = 1.0
+                  child.material.needUpdate = true
+
+                  // Fallback-Material falls nötig
+                  if (!child.material.color) {
+                    child.material.color = new THREE.Color(
+                      Math.random(),
+                      Math.random(),
+                      Math.random()
+                    ) // Zufällige Farbe als Fallback
+                  }
+                }
+              } else {
+                // Kein Material? Erstelle ein farbiges Material
+                const randomColor = new THREE.Color(
+                  Math.random(),
+                  Math.random(),
+                  Math.random()
+                )
+                child.material = new THREE.MeshBasicMaterial({
+                  color: randomColor, // Zufällige Farben statt nur Grün
+                  transparent: false,
+                  opacity: 1.0
+                })
+              }
+
+              // Markiere als statisches Objekt
+              child.userData.type = 'MAP_GEOMETRY'
+              child.userData.isStatic = true
+
+              console.log(`📦 Map mesh: ${child.name} - Material fixed`)
+            }
+          })
+
+          // Map ist bereits positioniert und skaliert oben
+
+          resolve()
+        },
+        (progress) => {
+          console.log(`Loading map progress: ${Math.round((progress.loaded / progress.total!) * 100)}%`)
+        },
+        (error) => {
+          console.error('❌ Error loading GLB map:', error)
+          reject(error)
+        }
+      )
     })
-    this.ground = new THREE.Mesh(groundGeometry, groundMaterial)
-    this.ground.rotation.x = -Math.PI / 2 // PlaneGeometry braucht Rotation!
-    this.ground.position.y = 0
-    this.ground.receiveShadow = true
-    // ✅ BESTE PERFORMANCE: Markiere Ground für Wallrun-System
-    this.ground.userData.type = 'GROUND'
-    this.ground.userData.isStatic = true
-    this.scene.add(this.ground)
+  }
+
+  private createBasicMapFallback(): void {
+    console.log('🌍 Creating fallback basic map environment')
+
+    try {
+      // Create basic ground (GRÖSSER für bessere Sichtbarkeit)
+      const groundGeometry = new THREE.PlaneGeometry(200, 200)
+      const groundMaterial = new THREE.MeshStandardMaterial({
+        color: 0x2a5a3a, // Grüner Boden (besser sichtbar)
+        roughness: 0.8,
+        metalness: 0.2
+      })
+      this.ground = new THREE.Mesh(groundGeometry, groundMaterial)
+      this.ground.rotation.x = -Math.PI / 2 // PlaneGeometry braucht Rotation!
+      this.ground.position.y = 0
+      this.ground.receiveShadow = true
+      // ✅ BESTE PERFORMANCE: Markiere Ground für Wallrun-System
+      this.ground.userData.type = 'GROUND'
+      this.ground.userData.isStatic = true
+      this.scene.add(this.ground)
+      console.log('✅ Ground mesh added to scene')
+
+      // DEBUG: Füge eine sichtbare Test-Geometrie hinzu
+      const testBox = new THREE.Mesh(
+        new THREE.BoxGeometry(5, 5, 5),
+        new THREE.MeshBasicMaterial({ color: 0xff0000, wireframe: false }) // Rot, nicht wireframe
+      )
+      testBox.position.set(0, 2.5, -5) // In der Mitte, etwas angehoben, vor der Kamera
+      testBox.castShadow = true
+      testBox.receiveShadow = true
+      this.scene.add(testBox)
+      console.log('🔴 DEBUG: Red test box added at (0, 2.5, -5)')
+
+    } catch (error) {
+      console.error('❌ Error creating ground:', error)
+    }
 
     // Add to physics
-    const groundPhysics = createPhysicsObject(
-      this.ground,
-      PhysicsObjectType.STATIC,
-      PHYSICS_MATERIALS.CONCRETE
-    )
-    this.physicsEngine.addObject(groundPhysics)
+    try {
+      const groundPhysics = createPhysicsObject(
+        this.ground,
+        PhysicsObjectType.STATIC,
+        PHYSICS_MATERIALS.CONCRETE
+      )
+      this.physicsEngine.addObject(groundPhysics)
+      console.log('✅ Ground physics added')
+    } catch (error) {
+      console.warn('⚠️ Physics system error:', error)
+    }
 
     // Create some basic obstacles
     for (let i = 0; i < 20; i++) {
@@ -1858,7 +2105,17 @@ export class UltimateFPSEngineV4 {
     try {
       // ✅ BESTE INTEGRATION: Professional Player Character mit High-Res Texturen!
       console.log('👤 Loading professional player character...')
-      const playerModel = await this.modelManager.loadPlayerCharacter('tactical_operator_high')
+      let playerModel
+      try {
+        playerModel = await this.modelManager.loadPlayerCharacter('tactical_operator_high')
+      } catch (modelError) {
+        console.warn('⚠️ Player model not found, creating fallback mesh')
+        // Fallback: Erstelle eine einfache Box als Player
+        const playerGeometry = new THREE.BoxGeometry(1, 1.7, 1)
+        const playerMaterial = new THREE.MeshStandardMaterial({ color: 0x0000ff })
+        playerModel = new THREE.Mesh(playerGeometry, playerMaterial)
+        this.scene.add(playerModel) // Add fallback model to scene
+      }
       
       const playerInstance = playerModel.clone()
       
@@ -2691,7 +2948,7 @@ export class UltimateFPSEngineV4 {
    * BESTE Variante: Kill-Handling mit Dopamine-System (aus V6) + ✅ NEU: KillRewardSystem
    */
   private handleKill(killData: {
-    enemy: UltimateEnemy
+    enemy: UltimateEnemy  // from UpdateLoopManager
     weapon: BaseWeapon
     distance: number
     isHeadshot: boolean
@@ -2999,14 +3256,29 @@ export class UltimateFPSEngineV4 {
   }
 
   /**
-   * ✅ KRITISCH: Start Render-Schleife
+   * ✅ KRITISCH: Start Render-Schleife (nur wenn im richtigen GameState)
    */
   public start(): void {
     if (this.animationFrameId) {
       console.warn('⚠️ Render loop already running')
       return
     }
-    console.log('🎬 Starting render loop...')
+
+    // Initialize global keyboard manager for FPS game
+    GameKeyboard.init({ debugMode: true })
+
+    // Set game state to inGame
+    GameKeyboard.setGameState('inGame')
+
+    // Prüfe GameState - nur starten wenn wir im Spiel sind
+    const currentState = this.gameFlowManager.getCurrentState()
+    if (currentState === 'mainMenu' || currentState === 'characterSelect' || currentState === 'loadout') {
+      console.log(`🎮 Game State: ${currentState} - Render loop paused`)
+      // UI wird über GameFlowManager Events gerendert
+      return
+    }
+
+    console.log('🎬 Starting render loop with global keyboard blocking...')
     this.clock.start() // Clock starten für Delta-Time
     this.update() // Erste Frame starten
   }
@@ -3016,6 +3288,12 @@ export class UltimateFPSEngineV4 {
    */
   public update = (): void => {
     this.animationFrameId = requestAnimationFrame(this.update)
+
+    // KRITISCH: Stelle sicher, dass die Szene immer gerendert wird!
+    if (this.renderer && this.scene && this.camera) {
+      this.renderer.render(this.scene, this.camera)
+    }
+
     this.updateLoopManager.update()
   }
 
@@ -3103,7 +3381,7 @@ export class UltimateFPSEngineV4 {
   /**
    * 🤖 REFACTORED: Handle Enemy Death - Delegate to EnemyAIManager
    */
-  private handleEnemyDeath(enemy: UltimateEnemy): void {
+  private handleEnemyDeath(enemy: UltimateEnemy): void {  // from UpdateLoopManager
     // All cleanup now handled by EnemyAIManager
     this.enemyAIManager.handleEnemyDeath(enemy)
 
@@ -3194,6 +3472,10 @@ export class UltimateFPSEngineV4 {
 
     // Remove renderer from DOM
     this.container.removeChild(this.renderer.domElement)
+
+    // Reset global game keyboard state
+    GameKeyboard.setGameState('menu')
+    console.log('🎮 Global keyboard state reset to menu')
 
     console.log('✅ Engine V4 destroyed')
   }

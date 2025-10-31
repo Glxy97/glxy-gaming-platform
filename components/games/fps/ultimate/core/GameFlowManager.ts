@@ -29,6 +29,7 @@ export interface GameFlowState {
 export class GameFlowManager extends EventEmitter {
   private state: GameFlowState
   private stateHistory: GameState[] = []
+  private globalKeydownHandler: ((e: KeyboardEvent) => void) | null = null
 
   constructor() {
     super()
@@ -41,6 +42,9 @@ export class GameFlowManager extends EventEmitter {
       settings: this.getDefaultSettings(),
       isPaused: false
     }
+
+    // Setup global keyboard blocking for all games
+    this.setupGlobalKeyboardBlock()
   }
 
   /**
@@ -260,11 +264,95 @@ export class GameFlowManager extends EventEmitter {
   }
 
   /**
+   * Check if currently in an active game state
+   */
+  isInGame(): boolean {
+    return this.state.currentState === 'inGame' || this.state.currentState === 'paused'
+  }
+
+  /**
+   * Setup global keyboard blocking for all games
+   */
+  setupGlobalKeyboardBlock(): void {
+    if (typeof window === 'undefined') return
+
+    // Remove existing listeners to prevent duplicates
+    this.removeGlobalKeyboardBlock()
+
+    // Create global keydown handler
+    this.globalKeydownHandler = (e: KeyboardEvent): void => {
+      if (this.isInGame()) {
+        this.preventBrowserDefaults(e)
+      }
+    }
+
+    // Add to document
+    document.addEventListener('keydown', this.globalKeydownHandler, true)
+
+    console.log('🎮 Global keyboard blocking enabled for all games')
+  }
+
+  /**
+   * Remove global keyboard blocking
+   */
+  removeGlobalKeyboardBlock(): void {
+    if (typeof window === 'undefined') return
+
+    if (this.globalKeydownHandler) {
+      document.removeEventListener('keydown', this.globalKeydownHandler, true)
+      this.globalKeydownHandler = null
+    }
+  }
+
+  /**
+   * Prevent browser default behaviors during gameplay
+   */
+  private preventBrowserDefaults(e: KeyboardEvent): void {
+    // Navigation keys that cause page scrolling/interaction
+    const navigationKeys = [
+      ' ',        // Space (page scroll)
+      'ArrowUp',   // Up arrow
+      'ArrowDown', // Down arrow
+      'ArrowLeft', // Left arrow
+      'ArrowRight',// Right arrow
+      'PageUp',    // Page up
+      'PageDown',  // Page down
+      'Home',      // Home
+      'End',       // End
+      'Tab'        // Tab (focus navigation)
+    ]
+
+    // Function keys that trigger browser actions
+    const functionKeys = [
+      'F1', 'F2', 'F3', 'F4', 'F5', 'F6', 'F7', 'F8', 'F9', 'F10', 'F11', 'F12'
+    ]
+
+    // Other problematic keys
+    const otherKeys = [
+      'Enter',     // Form submission
+      'Backspace'  // Browser back navigation
+    ]
+
+    // Check if key should be prevented
+    const shouldPrevent = [
+      ...navigationKeys,
+      ...functionKeys,
+      ...otherKeys
+    ].includes(e.key)
+
+    if (shouldPrevent) {
+      e.preventDefault()
+      e.stopPropagation()
+    }
+  }
+
+  /**
    * Cleanup
    */
   destroy(): void {
     this.removeAllListeners()
     this.stateHistory = []
+    this.removeGlobalKeyboardBlock()
   }
 }
 

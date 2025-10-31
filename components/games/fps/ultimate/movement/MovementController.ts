@@ -98,6 +98,10 @@ export class MovementController implements IMovementController {
     return this.state.velocity.clone()
   }
 
+  get position(): THREE.Vector3 {
+    return this.playerMesh ? this.playerMesh.position.clone() : new THREE.Vector3()
+  }
+
   get baseSpeed(): number {
     return this.state.baseSpeed
   }

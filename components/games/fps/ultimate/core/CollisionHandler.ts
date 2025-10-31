@@ -12,7 +12,7 @@ import { AdvancedVisualFeedbackManager } from '../features/AdvancedVisualFeedbac
 import { HitboxSystemManager, HitboxZone } from '../systems/HitboxSystem'
 import { MapInteractionManager } from '../systems/MapInteractionSystem'
 import type { BaseWeapon } from '../weapons/BaseWeapon'
-import type { UltimateEnemy, UltimatePlayerStats } from './UltimateFPSEngineV4'
+import type { GameEnemy, UltimatePlayerStats } from './UltimateFPSEngineV4'
 
 /**
  * 💥 COLLISION HANDLER
@@ -52,7 +52,7 @@ export class CollisionHandler {
   private camera: THREE.PerspectiveCamera
 
   // Callbacks
-  private onEnemyHit: (enemy: UltimateEnemy, damage: number, isHeadshot: boolean, hitPoint: THREE.Vector3) => void
+  private onEnemyHit: (enemy: GameEnemy, damage: number, isHeadshot: boolean, hitPoint: THREE.Vector3) => void
   private onScreenFlash: (type: 'red' | 'white') => void
 
   constructor(deps: {
@@ -68,7 +68,7 @@ export class CollisionHandler {
     player: { mesh: THREE.Group; position: THREE.Vector3; stats: UltimatePlayerStats }
     gameState: { shotsHit: number; damageTaken: number; headshots: number }
     camera: THREE.PerspectiveCamera
-    onEnemyHit: (enemy: UltimateEnemy, damage: number, isHeadshot: boolean, hitPoint: THREE.Vector3) => void
+    onEnemyHit: (enemy: GameEnemy, damage: number, isHeadshot: boolean, hitPoint: THREE.Vector3) => void
     onScreenFlash: (type: 'red' | 'white') => void
   }) {
     this.physicsEngine = deps.physicsEngine

@@ -1,7 +1,8 @@
 // @ts-nocheck
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { GameKeyboard } from './shared/GlobalGameKeyboardManager'
 import { motion } from 'framer-motion'
 import {
   Users,
@@ -41,6 +42,22 @@ export function GameStartMenu({
   onClose
 }: GameStartMenuProps) {
   const [showSettings, setShowSettings] = useState(false)
+
+  // Initialize global keyboard manager
+  useEffect(() => {
+    // Initialize with debug mode in development
+    GameKeyboard.init({ debugMode: process.env.NODE_ENV === 'development' })
+
+    // Set initial state to menu
+    GameKeyboard.setGameState('menu')
+
+    console.log(`🎮 GameStartMenu initialized for ${gameName} with global keyboard blocking`)
+
+    // Cleanup on unmount
+    return () => {
+      GameKeyboard.setGameState('menu')
+    }
+  }, [gameName])
   const [selectedMode, setSelectedMode] = useState<'singleplayer' | 'multiplayer' | null>(null)
   const [singleplayerConfig, setSingleplayerConfig] = useState({
     difficulty: 'medium',
@@ -56,6 +73,12 @@ export function GameStartMenu({
 
   const handleStartGame = (mode: 'singleplayer' | 'multiplayer') => {
     const config = mode === 'singleplayer' ? singleplayerConfig : multiplayerConfig
+
+    // Set game state to inGame before starting
+    GameKeyboard.setGameState('inGame')
+
+    console.log(`🎮 Starting ${gameName} in ${mode} mode with keyboard blocking enabled`)
+
     onStartGame(mode, config)
   }
 

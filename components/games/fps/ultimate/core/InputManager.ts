@@ -70,6 +70,7 @@ export class InputManager {
     abilitySystem: AbilitySystem
     ground: THREE.Mesh
     scene: THREE.Scene
+    gameFlowManager?: any // GameFlowManager für GameState-Prüfung
     onShoot: () => void
     onReload: () => void
     onWeaponSwitch: (index: number) => void
@@ -85,6 +86,7 @@ export class InputManager {
     this.abilitySystem = deps.abilitySystem
     this.ground = deps.ground
     this.scene = deps.scene
+    this.gameFlowManager = deps.gameFlowManager
     this.onShoot = deps.onShoot
     this.onReload = deps.onReload
     this.onWeaponSwitch = deps.onWeaponSwitch
@@ -128,6 +130,18 @@ export class InputManager {
    * Key Down Handler
    */
   private onKeyDown = (e: KeyboardEvent): void => {
+    // Comprehensive browser default prevention when in game
+    if (this.isInGame()) {
+      this.preventBrowserDefaults(e)
+
+      // ESC - Special handling: prevent default but let game logic handle it
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        // Don't add to keys, let UltimateFPSEngineV4 handle the game logic
+        return
+      }
+    }
+
     this.keys.add(e.key.toLowerCase())
 
     // Weapon switching
@@ -172,7 +186,7 @@ export class InputManager {
       this.onShoot()
     } else if (e.button === 2) { // Right click - Aim
       this.player.stats.isAiming = true
-      this.scopeSystem.startAiming()
+      this.scopeSystem.scopeIn()
     } else if (e.button === 1) { // Middle click - Grenade
       this.onGrenadeThrow()
     }
@@ -184,7 +198,7 @@ export class InputManager {
   private onMouseUp = (e: MouseEvent): void => {
     if (e.button === 2) {
       this.player.stats.isAiming = false
-      this.scopeSystem.stopAiming()
+      this.scopeSystem.scopeOut()
     }
   }
 
@@ -193,6 +207,11 @@ export class InputManager {
    */
   private onMouseMove = (e: MouseEvent): void => {
     if (!this.isPointerLocked) return
+
+    // Nur Mausrotation erlauben, wenn wir im Spiel sind
+    if (this.gameFlowManager && this.gameFlowManager.getCurrentState() !== 'inGame') {
+      return
+    }
 
     this.mouse.deltaX = e.movementX * this.mouseSensitivity
     this.mouse.deltaY = e.movementY * this.mouseSensitivity
@@ -282,5 +301,56 @@ export class InputManager {
    */
   public getMouseDelta(): { x: number; y: number } {
     return { x: this.mouse.deltaX, y: this.mouse.deltaY }
+  }
+
+  /**
+   * Check if we're currently in an active game state
+   */
+  private isInGame(): boolean {
+    if (!this.gameFlowManager) return true // Fallback: assume in game
+    const currentState = this.gameFlowManager.getCurrentState()
+    return currentState === 'inGame' || currentState === 'paused'
+  }
+
+  /**
+   * Prevent browser default behaviors for game-relevant keys
+   */
+  private preventBrowserDefaults(e: KeyboardEvent): void {
+    // Navigation keys that cause page scrolling/interaction
+    const navigationKeys = [
+      ' ',        // Space (page scroll)
+      'ArrowUp',   // Up arrow
+      'ArrowDown', // Down arrow
+      'ArrowLeft', // Left arrow
+      'ArrowRight',// Right arrow
+      'PageUp',    // Page up
+      'PageDown',  // Page down
+      'Home',      // Home
+      'End',       // End
+      'Tab'        // Tab (focus navigation)
+    ]
+
+    // Function keys that trigger browser actions
+    const functionKeys = [
+      'F1', 'F2', 'F3', 'F4', 'F5', 'F6', 'F7', 'F8', 'F9', 'F10', 'F11', 'F12'
+    ]
+
+    // Other problematic keys
+    const otherKeys = [
+      'Enter',     // Form submission
+      'Backspace'  // Browser back navigation
+    ]
+
+    // Check if key should be prevented
+    const shouldPrevent = [
+      ...navigationKeys,
+      ...functionKeys,
+      ...otherKeys
+    ].includes(e.key)
+
+    if (shouldPrevent) {
+      e.preventDefault()
+      e.stopPropagation()
+    }
   }
 }

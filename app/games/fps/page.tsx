@@ -8,7 +8,7 @@ import { Suspense } from 'react'
 // Dynamischer Import für Three.js (Client-only)
 const UltimateFPSGame = dynamic(
   () => import('@/components/games/fps/ultimate/UltimateFPSGame'),
-  { 
+  {
     ssr: false,
     loading: () => (
       <div className="flex items-center justify-center h-screen bg-black">

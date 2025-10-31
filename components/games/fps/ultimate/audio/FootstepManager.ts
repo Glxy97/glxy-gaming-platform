@@ -40,6 +40,7 @@ export class FootstepManager {
   private lastFootstepTime: number = 0
   private footstepInterval: number = 500 // milliseconds
   private enabled: boolean = true
+  private currentSurface: SurfaceType = SurfaceType.CONCRETE
 
   // Footstep intervals based on movement type (ms)
   private intervals: Record<MovementType, number> = {

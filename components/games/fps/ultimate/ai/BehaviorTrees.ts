@@ -6,7 +6,7 @@
  */
 
 import * as THREE from 'three'
-import { EnemyBehavior, EnemyClassConfig } from './EnemyClasses'
+import { EnemyBehavior, EnemyClassConfig, getEnemyConfig, EnemyClass } from './EnemyClasses'
 
 // ============================================================================
 // BEHAVIOR TREE TYPES
@@ -114,8 +114,51 @@ export class BehaviorTreeManager {
       console.warn(`Unknown behavior: ${behavior}`)
       return { type: ActionType.HOLD_POSITION, priority: 0 }
     }
-    
+
     return behaviorFunc(config, context)
+  }
+
+  /**
+   * Evaluate behavior for enemy (wrapper method for compatibility)
+   */
+  evaluate(
+    enemy: any,
+    playerMesh: THREE.Object3D,
+    distance: number
+  ): BehaviorAction | null {
+    // Extract behavior from enemy
+    const behavior = enemy.aiController?.behavior || EnemyBehavior.RUSH
+    const config = enemy.config || getEnemyConfig(EnemyClass.GRUNT)
+
+    // Create context
+    const context: BehaviorContext = {
+      enemyPosition: enemy.mesh.position.clone(),
+      enemyHealth: enemy.health,
+      enemyMaxHealth: enemy.maxHealth,
+      isInCover: false, // TODO: Implement cover detection
+      hasLineOfSight: true, // TODO: Implement LOS check
+
+      playerPosition: playerMesh.position.clone(),
+      distanceToPlayer: distance,
+      timeSinceLastSeen: 0,
+
+      currentWeapon: null,
+      ammo: 100,
+      isReloading: false,
+      timeSinceLastShot: 0,
+
+      nearbyAllies: [],
+      nearbyEnemies: [],
+
+      scene: new THREE.Scene(), // TODO: Pass actual scene
+      coverPoints: [],
+      flankingRoutes: [],
+
+      deltaTime: 0.016, // 60 FPS assumption
+      timestamp: Date.now()
+    }
+
+    return this.executeBehavior(behavior, config, context)
   }
 
   // ============================================================================
